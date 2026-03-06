@@ -288,6 +288,7 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
                   final sid = sensors['id'] as String;
                   return _SensorDevicesList(
                     sensorsId: sid,
+                    plantId: widget.plantId,
                     filter: _deviceFilter,
                     search: _deviceSearch,
                   );
@@ -523,10 +524,14 @@ class _InverterDeviceCard extends ConsumerWidget {
 
 class _SensorDevicesList extends ConsumerWidget {
   final String sensorsId;
+  final String plantId;
   final String filter;
   final String search;
   const _SensorDevicesList(
-      {required this.sensorsId, required this.filter, required this.search});
+      {required this.sensorsId,
+      required this.plantId,
+      required this.filter,
+      required this.search});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -540,9 +545,14 @@ class _SensorDevicesList extends ConsumerWidget {
       mfms.whenData((list) {
         for (final m in list) {
           final n = m['name']?.toString() ?? 'MFM';
+          final id = m['id'] as String;
           if (search.isEmpty ||
               n.toLowerCase().contains(search.toLowerCase())) {
-            widgets.add(_DeviceCard(name: n, type: 'MFM'));
+            widgets.add(_DeviceCard(
+              name: n,
+              type: 'MFM',
+              onTap: () => context.go('/plants/$plantId/mfm/$id'),
+            ));
           }
         }
       });
@@ -562,9 +572,14 @@ class _SensorDevicesList extends ConsumerWidget {
       temps.whenData((list) {
         for (final t in list) {
           final n = t['name']?.toString() ?? 'Radiation Sensor';
+          final id = t['id'] as String;
           if (search.isEmpty ||
               n.toLowerCase().contains(search.toLowerCase())) {
-            widgets.add(_DeviceCard(name: n, type: 'Radiation Sensor'));
+            widgets.add(_DeviceCard(
+              name: n,
+              type: 'Radiation Sensor',
+              onTap: () => context.go('/plants/$plantId/temp/$id'),
+            ));
           }
         }
       });

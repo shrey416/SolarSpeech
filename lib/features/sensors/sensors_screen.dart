@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/data_providers.dart';
 import '../shared/breadcrumb_bar.dart';
@@ -139,6 +140,7 @@ class _MfmTab extends ConsumerWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
+              showCheckboxColumn: false,
               headingRowColor:
                   WidgetStateProperty.all(AppColors.primaryLighter),
               columns: const [
@@ -151,7 +153,9 @@ class _MfmTab extends ConsumerWidget {
               rows: filtered.map((m) {
                 final latestAsync =
                     ref.watch(latestMfmDataProvider(m['id'] as String));
-                return _buildMfmRow(m, latestAsync);
+                final plantId =
+                    m['Sensors']?['plantId']?.toString() ?? '';
+                return _buildMfmRow(context, m, latestAsync, plantId);
               }).toList(),
             ),
           ),
@@ -160,10 +164,15 @@ class _MfmTab extends ConsumerWidget {
     );
   }
 
-  DataRow _buildMfmRow(Map<String, dynamic> mfm,
-      AsyncValue<Map<String, dynamic>?> latestAsync) {
+  DataRow _buildMfmRow(BuildContext context, Map<String, dynamic> mfm,
+      AsyncValue<Map<String, dynamic>?> latestAsync, String plantId) {
+    final mfmId = mfm['id'] as String;
     return latestAsync.when(
-      loading: () => DataRow(cells: [
+      loading: () => DataRow(
+        onSelectChanged: plantId.isNotEmpty
+            ? (_) => context.go('/plants/$plantId/mfm/$mfmId')
+            : null,
+        cells: [
         const DataCell(
             Icon(Icons.circle, color: AppColors.textSecondary, size: 10)),
         DataCell(Text(mfm['name']?.toString() ?? 'MFM')),
@@ -171,7 +180,11 @@ class _MfmTab extends ConsumerWidget {
         const DataCell(Text('Loading...')),
         const DataCell(Text('-')),
       ]),
-      error: (_, __) => DataRow(cells: [
+      error: (_, __) => DataRow(
+        onSelectChanged: plantId.isNotEmpty
+            ? (_) => context.go('/plants/$plantId/mfm/$mfmId')
+            : null,
+        cells: [
         const DataCell(
             Icon(Icons.circle, color: AppColors.alert, size: 10)),
         DataCell(Text(mfm['name']?.toString() ?? 'MFM')),
@@ -188,7 +201,11 @@ class _MfmTab extends ConsumerWidget {
                 : AppColors.alert;
         final ts = data?['timestamp']?.toString();
         final dt = ts != null ? DateTime.tryParse(ts) : null;
-        return DataRow(cells: [
+        return DataRow(
+          onSelectChanged: plantId.isNotEmpty
+              ? (_) => context.go('/plants/$plantId/mfm/$mfmId')
+              : null,
+          cells: [
           DataCell(Icon(Icons.circle, color: color, size: 10)),
           DataCell(Text(mfm['name']?.toString() ?? 'MFM',
               style: const TextStyle(fontWeight: FontWeight.w600))),
@@ -292,6 +309,7 @@ class _TempTab extends ConsumerWidget {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
+              showCheckboxColumn: false,
               headingRowColor:
                   WidgetStateProperty.all(AppColors.primaryLighter),
               columns: const [
@@ -304,7 +322,9 @@ class _TempTab extends ConsumerWidget {
               rows: filtered.map((t) {
                 final latestAsync =
                     ref.watch(latestTempDataProvider(t['id'] as String));
-                return _buildTempRow(t, latestAsync);
+                final plantId =
+                    t['Sensors']?['plantId']?.toString() ?? '';
+                return _buildTempRow(context, t, latestAsync, plantId);
               }).toList(),
             ),
           ),
@@ -313,10 +333,15 @@ class _TempTab extends ConsumerWidget {
     );
   }
 
-  DataRow _buildTempRow(Map<String, dynamic> device,
-      AsyncValue<Map<String, dynamic>?> latestAsync) {
+  DataRow _buildTempRow(BuildContext context, Map<String, dynamic> device,
+      AsyncValue<Map<String, dynamic>?> latestAsync, String plantId) {
+    final deviceId = device['id'] as String;
     return latestAsync.when(
-      loading: () => DataRow(cells: [
+      loading: () => DataRow(
+        onSelectChanged: plantId.isNotEmpty
+            ? (_) => context.go('/plants/$plantId/temp/$deviceId')
+            : null,
+        cells: [
         const DataCell(
             Icon(Icons.circle, color: AppColors.textSecondary, size: 10)),
         DataCell(Text(device['name']?.toString() ?? 'Sensor')),
@@ -324,7 +349,11 @@ class _TempTab extends ConsumerWidget {
         const DataCell(Text('Loading...')),
         const DataCell(Text('-')),
       ]),
-      error: (_, __) => DataRow(cells: [
+      error: (_, __) => DataRow(
+        onSelectChanged: plantId.isNotEmpty
+            ? (_) => context.go('/plants/$plantId/temp/$deviceId')
+            : null,
+        cells: [
         const DataCell(
             Icon(Icons.circle, color: AppColors.alert, size: 10)),
         DataCell(Text(device['name']?.toString() ?? 'Sensor')),
@@ -341,7 +370,11 @@ class _TempTab extends ConsumerWidget {
                 : AppColors.alert;
         final ts = data?['timestamp']?.toString();
         final dt = ts != null ? DateTime.tryParse(ts) : null;
-        return DataRow(cells: [
+        return DataRow(
+          onSelectChanged: plantId.isNotEmpty
+              ? (_) => context.go('/plants/$plantId/temp/$deviceId')
+              : null,
+          cells: [
           DataCell(Icon(Icons.circle, color: color, size: 10)),
           DataCell(Text(device['name']?.toString() ?? 'Sensor',
               style: const TextStyle(fontWeight: FontWeight.w600))),

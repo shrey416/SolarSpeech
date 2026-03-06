@@ -8,40 +8,24 @@ import '../../core/utils/csv_export.dart';
 import '../../providers/data_providers.dart';
 import '../shared/breadcrumb_bar.dart';
 
-class SingleInverterScreen extends ConsumerStatefulWidget {
-  final String inverterId;
+class SingleMfmScreen extends ConsumerStatefulWidget {
+  final String mfmId;
   final String plantId;
-  const SingleInverterScreen(
-      {super.key, required this.inverterId, required this.plantId});
+  const SingleMfmScreen(
+      {super.key, required this.mfmId, required this.plantId});
 
   @override
-  ConsumerState<SingleInverterScreen> createState() =>
-      _SingleInverterScreenState();
+  ConsumerState<SingleMfmScreen> createState() => _SingleMfmScreenState();
 }
 
-class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
+class _SingleMfmScreenState extends ConsumerState<SingleMfmScreen> {
   late DateTime _selectedDate;
-  String _selectedChart = 'Total PV Current';
+  String _selectedChart = 'Voltage';
 
   static const _chartOptions = [
-    'Total PV Current',
-    'E-Total Power',
-    'Total PV Voltage',
-    'E-Today Power',
-    'Active Power',
-  ];
-
-  static const _dcChannels = [1, 2, 3, 4, 5, 6, 7, 8];
-
-  static const _channelColors = <Color>[
-    AppColors.primary,
-    AppColors.chartGreen,
-    AppColors.chartOrange,
-    AppColors.chartPurple,
-    AppColors.chartBlue,
-    AppColors.chartRed,
-    AppColors.chartTeal,
-    AppColors.chartPink,
+    'Voltage',
+    'Current',
+    'Total Power',
   ];
 
   @override
@@ -52,23 +36,22 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final invAsync = ref.watch(inverterByIdProvider(widget.inverterId));
-    final dataAsync = ref.watch(inverterDataByDateProvider(
-        (inverterId: widget.inverterId, date: _selectedDate)));
-    final latestAsync =
-        ref.watch(latestInverterDataProvider(widget.inverterId));
+    final mfmAsync = ref.watch(mfmByIdProvider(widget.mfmId));
+    final dataAsync = ref.watch(mfmDataByDateProvider(
+        (mfmId: widget.mfmId, date: _selectedDate)));
+    final latestAsync = ref.watch(latestMfmDataProvider(widget.mfmId));
     final plantAsync = ref.watch(plantByIdProvider(widget.plantId));
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 768;
 
-    return invAsync.when(
+    return mfmAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Error: $e')),
-      data: (inv) {
-        if (inv == null) return const Center(child: Text('Inverter not found'));
-        final invName = inv['name'] ?? 'Inverter';
+      data: (mfm) {
+        if (mfm == null) return const Center(child: Text('MFM not found'));
+        final mfmName = mfm['name'] ?? 'MFM';
         final plantName =
-            inv['Plant']?['name'] ?? plantAsync.value?['name'] ?? 'Plant';
+            mfm['Sensors']?['Plant']?['name'] ?? plantAsync.value?['name'] ?? 'Plant';
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -82,7 +65,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                     route: '/plants/${widget.plantId}'),
                 BreadcrumbItem(plantName,
                     route: '/plants/${widget.plantId}'),
-                BreadcrumbItem(invName),
+                BreadcrumbItem(mfmName),
               ]),
 
               // ── Header ──
@@ -97,10 +80,6 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                           fontSize: 13,
                           fontWeight: FontWeight.w500)),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.info_outline),
-                    onPressed: () {},
-                  ),
                   FilledButton.icon(
                     icon: const Icon(Icons.warning_amber_rounded, size: 16),
                     label: const Text('Alerts'),
@@ -113,7 +92,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Text(invName,
+                  Text(mfmName,
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
                   const Spacer(),
@@ -128,25 +107,24 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
               ),
               const SizedBox(height: 20),
 
-              // ── Grid Measurements + Energy Data ──
+              // ── Measurement Cards ──
               isMobile
                   ? Column(children: [
-                      _GridMeasurementsCard(latestAsync: latestAsync),
+                      _MfmMeasurementsCard(latestAsync: latestAsync),
                       const SizedBox(height: 16),
-                      _EnergyDataCard(latestAsync: latestAsync),
+                      _MfmPowerCard(latestAsync: latestAsync),
                     ])
                   : Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                             flex: 2,
-                            child: _GridMeasurementsCard(
+                            child: _MfmMeasurementsCard(
                                 latestAsync: latestAsync)),
                         const SizedBox(width: 16),
                         Expanded(
                             flex: 1,
-                            child:
-                                _EnergyDataCard(latestAsync: latestAsync)),
+                            child: _MfmPowerCard(latestAsync: latestAsync)),
                       ],
                     ),
 
@@ -159,7 +137,6 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Chart type selector chips ──
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
@@ -170,8 +147,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                                   selected: _selectedChart == opt,
                                   onSelected: (v) {
                                     if (v) {
-                                      setState(
-                                          () => _selectedChart = opt);
+                                      setState(() => _selectedChart = opt);
                                     }
                                   },
                                   selectedColor: AppColors.primaryLight,
@@ -186,7 +162,6 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                                 ))
                             .toList(),
                       ),
-
                       const SizedBox(height: 12),
 
                       // ── Date controls ──
@@ -217,20 +192,13 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                                 _selectedDate = DateTime(2026, 3, 5)),
                             child: const Text('Today'),
                           ),
-                          TextButton(
-                            onPressed: () => setState(() =>
-                                _selectedDate = DateTime(2026, 3, 5)
-                                    .subtract(const Duration(days: 1))),
-                            child: const Text('Yesterday'),
-                          ),
                         ],
                       ),
-
                       const SizedBox(height: 12),
 
-                      // ── Legend for multi-line charts ──
-                      if (_selectedChart == 'Total PV Current' ||
-                          _selectedChart == 'Total PV Voltage')
+                      // ── Legend ──
+                      if (_selectedChart == 'Voltage' ||
+                          _selectedChart == 'Current')
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: _buildLegend(),
@@ -248,8 +216,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                               return const Center(
                                   child: Text('No data for this date',
                                       style: TextStyle(
-                                          color:
-                                              AppColors.textSecondary)));
+                                          color: AppColors.textSecondary)));
                             }
                             return _buildChart(records);
                           },
@@ -266,14 +233,15 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     );
   }
 
-  // ── Legend row for multi-channel charts ──
   Widget _buildLegend() {
-    final prefix =
-        _selectedChart == 'Total PV Current' ? 'DC Current' : 'DC Voltage';
+    final phases = _selectedChart == 'Voltage'
+        ? ['L1-N Voltage', 'L2-N Voltage', 'L3-N Voltage']
+        : ['L1-N Current', 'L2-N Current', 'L3-N Current'];
+    const colors = [AppColors.primary, AppColors.chartGreen, AppColors.chartOrange];
     return Wrap(
       spacing: 16,
       runSpacing: 6,
-      children: _dcChannels.map((ch) {
+      children: List.generate(3, (i) {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -281,105 +249,70 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                 width: 14,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: _channelColors[(ch - 1) % _channelColors.length],
+                  color: colors[i],
                   borderRadius: BorderRadius.circular(2),
                 )),
             const SizedBox(width: 4),
-            Text('$prefix #$ch',
+            Text(phases[i],
                 style: const TextStyle(
                     fontSize: 11, color: AppColors.textSecondary)),
           ],
         );
-      }).toList(),
+      }),
     );
   }
 
-  // ── Chart dispatcher ──
   Widget _buildChart(List<Map<String, dynamic>> records) {
     switch (_selectedChart) {
-      case 'Total PV Current':
-        return _buildMultiLineChart(records, 'dcCurrent', 'A');
-      case 'Total PV Voltage':
-        return _buildMultiLineChart(records, 'dcVoltage', 'V');
-      case 'E-Total Power':
-        return _buildSingleLineChart(
-            records, (r) => _extractFieldOrCompute(r, 'eTotalPower'), 'kW', 'E-Total Power');
-      case 'E-Today Power':
-        return _buildSingleLineChart(
-            records, (r) => _extractFieldOrCompute(r, 'eTodayPower'), 'kW', 'E-Today Power');
-      case 'Active Power':
-        return _buildSingleLineChart(
-            records, _computeActivePower, 'W', 'Active Power');
+      case 'Voltage':
+        return _buildMultiLineChart(records,
+            ['l1nVoltage', 'l2nVoltage', 'l3nVoltage'], 'V');
+      case 'Current':
+        return _buildMultiLineChart(records,
+            ['l1nCurrent', 'l2nCurrent', 'l3nCurrent'], 'A');
+      case 'Total Power':
+        return _buildSingleLineChart(records, 'totalPower', 'kW');
       default:
         return const SizedBox.shrink();
     }
   }
 
-  // ── Helper: timestamp to hours since midnight ──
-  double _tsToHours(Map<String, dynamic> r) {
-    final ts = r['timestamp']?.toString() ?? '';
-    final dt = DateTime.tryParse(ts);
-    if (dt == null) return 0;
-    return dt.hour + dt.minute / 60.0;
-  }
-
-  // ── Multi-line chart (8 channels) ──
   Widget _buildMultiLineChart(
-      List<Map<String, dynamic>> records, String prefix, String unit) {
-    final channels = <int, List<FlSpot>>{};
-    for (int i = 0; i < records.length; i++) {
-      final r = records[i];
-      final x = _tsToHours(r);
-      for (final ch in _dcChannels) {
-        final val = (r['$prefix$ch'] as num?)?.toDouble();
+      List<Map<String, dynamic>> records, List<String> fields, String unit) {
+    const colors = [AppColors.primary, AppColors.chartGreen, AppColors.chartOrange];
+    final series = <LineChartBarData>[];
+
+    for (int f = 0; f < fields.length; f++) {
+      final spots = <FlSpot>[];
+      for (int i = 0; i < records.length; i++) {
+        final val = (records[i][fields[f]] as num?)?.toDouble();
         if (val != null) {
-          channels.putIfAbsent(ch, () => []);
-          channels[ch]!.add(FlSpot(x, val));
+          spots.add(FlSpot(i.toDouble(), val));
         }
       }
-    }
-    if (channels.isEmpty) {
-      return Center(
-          child: Text('No ${prefix == 'dcCurrent' ? 'current' : 'voltage'} data',
-              style: const TextStyle(color: AppColors.textSecondary)));
+      if (spots.isNotEmpty) {
+        series.add(LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          color: colors[f % colors.length],
+          barWidth: 2,
+          dotData: const FlDotData(show: false),
+        ));
+      }
     }
 
-    final channelList = channels.keys.toList()..sort();
-    final series = <LineChartBarData>[];
-    for (final ch in channelList) {
-      series.add(LineChartBarData(
-        spots: channels[ch]!,
-        isCurved: true,
-        color: _channelColors[(ch - 1) % _channelColors.length],
-        barWidth: 2,
-        dotData: const FlDotData(show: false),
-      ));
+    if (series.isEmpty) {
+      return const Center(
+          child: Text('No data',
+              style: TextStyle(color: AppColors.textSecondary)));
     }
 
     return LineChart(LineChartData(
-      minX: 0,
-      maxX: 24,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (_) => Colors.white,
           fitInsideHorizontally: true,
           fitInsideVertically: true,
-          getTooltipItems: (spots) {
-            return spots.map((spot) {
-              final ch = channelList[spot.barIndex];
-              final label = prefix == 'dcCurrent'
-                  ? 'DC Current #$ch'
-                  : 'DC Voltage #$ch';
-              return LineTooltipItem(
-                '$label\n${spot.y.toStringAsFixed(2)} $unit',
-                TextStyle(
-                  color: _channelColors[(ch - 1) % _channelColors.length],
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              );
-            }).toList();
-          },
         ),
       ),
       gridData: FlGridData(
@@ -388,45 +321,32 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
         getDrawingHorizontalLine: (v) =>
             FlLine(color: AppColors.border, strokeWidth: 1),
       ),
-      titlesData: _buildTimeAxisTitles(unit),
+      titlesData: _buildTitlesData(records, unit),
       borderData: FlBorderData(show: false),
       lineBarsData: series,
     ));
   }
 
-  // ── Single-line chart ──
   Widget _buildSingleLineChart(
-    List<Map<String, dynamic>> records,
-    List<FlSpot> Function(List<Map<String, dynamic>>) computeFn,
-    String unit,
-    String label,
-  ) {
-    final spots = computeFn(records);
+      List<Map<String, dynamic>> records, String field, String unit) {
+    final spots = <FlSpot>[];
+    for (int i = 0; i < records.length; i++) {
+      final val = (records[i][field] as num?)?.toDouble();
+      if (val != null) {
+        spots.add(FlSpot(i.toDouble(), val));
+      }
+    }
     if (spots.isEmpty) {
-      return Center(
+      return const Center(
           child: Text('No data',
-              style: const TextStyle(color: AppColors.textSecondary)));
+              style: TextStyle(color: AppColors.textSecondary)));
     }
     return LineChart(LineChartData(
-      minX: 0,
-      maxX: 24,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (_) => Colors.white,
           fitInsideHorizontally: true,
           fitInsideVertically: true,
-          getTooltipItems: (spots) {
-            return spots.map((spot) {
-              return LineTooltipItem(
-                '$label\n${spot.y.toStringAsFixed(2)} $unit',
-                const TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 11,
-                ),
-              );
-            }).toList();
-          },
         ),
       ),
       gridData: FlGridData(
@@ -435,7 +355,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
         getDrawingHorizontalLine: (v) =>
             FlLine(color: AppColors.border, strokeWidth: 1),
       ),
-      titlesData: _buildTimeAxisTitles(unit),
+      titlesData: _buildTitlesData(records, unit),
       borderData: FlBorderData(show: false),
       lineBarsData: [
         LineChartBarData(
@@ -453,22 +373,25 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     ));
   }
 
-  // ── Shared axis titles (hours-based, 0–24) ──
-  FlTitlesData _buildTimeAxisTitles(String unit) {
+  FlTitlesData _buildTitlesData(
+      List<Map<String, dynamic>> records, String unit) {
     return FlTitlesData(
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
           reservedSize: 28,
-          interval: 3,
+          interval: (records.length / 6).ceilToDouble().clamp(1, 100),
           getTitlesWidget: (value, meta) {
-            final h = value.toInt();
-            if (h < 0 || h > 24 || h % 3 != 0) {
+            final idx = value.toInt();
+            if (idx < 0 || idx >= records.length) {
               return const SizedBox.shrink();
             }
+            final ts = records[idx]['timestamp']?.toString() ?? '';
+            final dt = DateTime.tryParse(ts);
+            if (dt == null) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('${h.toString().padLeft(2, '0')}:00',
+              child: Text(DateFormat('HH:mm').format(dt),
                   style: const TextStyle(
                       fontSize: 9, color: AppColors.textSecondary)),
             );
@@ -492,117 +415,38 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     );
   }
 
-  // ── Compute active power (W) at each timestamp ──
-  List<FlSpot> _computeActivePower(List<Map<String, dynamic>> records) {
-    final spots = <FlSpot>[];
-    for (int i = 0; i < records.length; i++) {
-      final r = records[i];
-      final x = _tsToHours(r);
-      final dbVal = (r['activePower'] as num?)?.toDouble();
-      if (dbVal != null) {
-        spots.add(FlSpot(x, dbVal));
-        continue;
-      }
-      double power = 0;
-      for (final ch in _dcChannels) {
-        final v = (r['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
-        final c = (r['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
-        power += v * c;
-      }
-      spots.add(FlSpot(x, power));
-    }
-    return spots;
-  }
-
-  // ── Extract a DB field or fallback to cumulative energy ──
-  List<FlSpot> _extractFieldOrCompute(
-      List<Map<String, dynamic>> records, String field) {
-    // If the field exists in DB, use it directly
-    final hasField = records.any((r) => r[field] != null);
-    if (hasField) {
-      final spots = <FlSpot>[];
-      for (int i = 0; i < records.length; i++) {
-        final val = (records[i][field] as num?)?.toDouble();
-        if (val != null) {
-          spots.add(FlSpot(_tsToHours(records[i]), val));
-        }
-      }
-      return spots;
-    }
-    return _computeCumulativeEnergy(records);
-  }
-
-  // ── Compute cumulative energy (kWh) ──
-  List<FlSpot> _computeCumulativeEnergy(
-      List<Map<String, dynamic>> records) {
-    final spots = <FlSpot>[];
-    double cumulative = 0;
-    for (int i = 0; i < records.length; i++) {
-      final r = records[i];
-      double power = 0;
-      for (final ch in _dcChannels) {
-        final v = (r['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
-        final c = (r['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
-        power += v * c;
-      }
-      // Approximate time step from adjacent records
-      double dtHours = 5.0 / 60.0; // default 5 min
-      if (i > 0) {
-        final ts0 = DateTime.tryParse(
-            records[i - 1]['timestamp']?.toString() ?? '');
-        final ts1 =
-            DateTime.tryParse(r['timestamp']?.toString() ?? '');
-        if (ts0 != null && ts1 != null) {
-          dtHours =
-              ts1.difference(ts0).inSeconds.abs() / 3600.0;
-        }
-      }
-      cumulative += (power / 1000.0) * dtHours;
-      spots.add(FlSpot(_tsToHours(r), cumulative));
-    }
-    return spots;
-  }
-
-  // ── CSV export with all 8 channels ──
   void _exportCsv(BuildContext context) {
-    final dataAsync = ref.read(inverterDataByDateProvider(
-        (inverterId: widget.inverterId, date: _selectedDate)));
+    final dataAsync = ref.read(mfmDataByDateProvider(
+        (mfmId: widget.mfmId, date: _selectedDate)));
     dataAsync.whenData((records) {
       if (records.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('No data to export')));
         return;
       }
-      final header = ['timestamp'];
-      for (final ch in _dcChannels) {
-        header.addAll(['dcVoltage$ch', 'dcCurrent$ch']);
-      }
-      header.addAll(['eTotalPower', 'eTodayPower', 'activePower']);
+      final header = [
+        'timestamp',
+        'l1nVoltage', 'l2nVoltage', 'l3nVoltage',
+        'l1nCurrent', 'l2nCurrent', 'l3nCurrent',
+        'totalPower',
+      ];
       final buf = StringBuffer();
       buf.writeln(header.join(','));
       for (final r in records) {
-        final row = [r['timestamp']];
-        for (final ch in _dcChannels) {
-          row.addAll([r['dcVoltage$ch'] ?? '', r['dcCurrent$ch'] ?? '']);
-        }
-        row.addAll([
-          r['eTotalPower'] ?? '',
-          r['eTodayPower'] ?? '',
-          r['activePower'] ?? '',
-        ]);
+        final row = header.map((h) => r[h] ?? '').toList();
         buf.writeln(row.join(','));
       }
       final filename =
-          'inverter_${widget.inverterId}_${DateFormat('yyyyMMdd').format(_selectedDate)}.csv';
+          'mfm_${widget.mfmId}_${DateFormat('yyyyMMdd').format(_selectedDate)}.csv';
       exportCsvFile(buf.toString(), filename, context);
     });
   }
 }
 
-// ── Grid Measurements Card ──
-class _GridMeasurementsCard extends StatelessWidget {
+// ── MFM Measurements Card ──
+class _MfmMeasurementsCard extends StatelessWidget {
   final AsyncValue<Map<String, dynamic>?> latestAsync;
-  const _GridMeasurementsCard({required this.latestAsync});
+  const _MfmMeasurementsCard({required this.latestAsync});
 
   @override
   Widget build(BuildContext context) {
@@ -612,7 +456,7 @@ class _GridMeasurementsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Grid Measurements',
+            const Text('MFM Measurements',
                 style:
                     TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
@@ -632,26 +476,13 @@ class _GridMeasurementsCard extends StatelessWidget {
                 }
 
                 final fields = <MapEntry<String, String>>[
-                  MapEntry(
-                      'Grid Voltage AB', fmt(data['gridVoltageAB'], 'V')),
-                  MapEntry(
-                      'Grid Voltage BC', fmt(data['gridVoltageBC'], 'V')),
-                  MapEntry(
-                      'Grid Voltage AC', fmt(data['gridVoltageAC'], 'V')),
-                  MapEntry(
-                      'Grid Voltage A', fmt(data['gridVoltageA'], 'V')),
-                  MapEntry(
-                      'Grid Voltage B', fmt(data['gridVoltageB'], 'V')),
-                  MapEntry(
-                      'Grid Voltage C', fmt(data['gridVoltageC'], 'V')),
-                  MapEntry(
-                      'Grid Current A', fmt(data['gridCurrentA'], 'A')),
-                  MapEntry(
-                      'Grid Current B', fmt(data['gridCurrentB'], 'A')),
-                  MapEntry(
-                      'Grid Current C', fmt(data['gridCurrentC'], 'A')),
-                  MapEntry(
-                      'Grid Frequency', fmt(data['gridFrequency'], 'Hz')),
+                  MapEntry('L1-N Voltage', fmt(data['l1nVoltage'], 'V')),
+                  MapEntry('L2-N Voltage', fmt(data['l2nVoltage'], 'V')),
+                  MapEntry('L3-N Voltage', fmt(data['l3nVoltage'], 'V')),
+                  MapEntry('L1-N Current', fmt(data['l1nCurrent'], 'A')),
+                  MapEntry('L2-N Current', fmt(data['l2nCurrent'], 'A')),
+                  MapEntry('L3-N Current', fmt(data['l3nCurrent'], 'A')),
+                  MapEntry('Frequency', fmt(data['frequency'], 'Hz')),
                 ];
 
                 return Wrap(
@@ -708,10 +539,10 @@ class _GridMeasurementsCard extends StatelessWidget {
   }
 }
 
-// ── Energy Data Card ──
-class _EnergyDataCard extends StatelessWidget {
+// ── MFM Power Card ──
+class _MfmPowerCard extends StatelessWidget {
   final AsyncValue<Map<String, dynamic>?> latestAsync;
-  const _EnergyDataCard({required this.latestAsync});
+  const _MfmPowerCard({required this.latestAsync});
 
   @override
   Widget build(BuildContext context) {
@@ -721,7 +552,7 @@ class _EnergyDataCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Energy Data',
+            const Text('Power Data',
                 style:
                     TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
@@ -735,66 +566,12 @@ class _EnergyDataCard extends StatelessWidget {
                       style:
                           TextStyle(color: AppColors.textSecondary));
                 }
-                final eTodayPower =
-                    (data['eTodayPower'] as num?)?.toDouble();
-                final eTotalPower =
-                    (data['eTotalPower'] as num?)?.toDouble();
-                final activePower =
-                    (data['activePower'] as num?)?.toDouble();
-
-                // Fallback: compute from DC channels if DB columns are null
-                double computedPower = 0;
-                for (final ch in [1, 2, 3, 4, 5, 6, 7, 8]) {
-                  final v =
-                      (data['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
-                  final c =
-                      (data['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
-                  computedPower += v * c;
-                }
-
-                String fmtPower(double? val, double fallback, String unit) {
-                  final v = val ?? fallback;
-                  return '${v.toStringAsFixed(2)} $unit';
-                }
-
-                return Column(
-                  children: [
-                    _EnergyItem(
-                        Icons.solar_power_outlined,
-                        'E-Today Active Production',
-                        fmtPower(eTodayPower, computedPower / 1000, 'kW')),
-                    const SizedBox(height: 16),
-                    _EnergyItem(
-                        Icons.electric_meter_outlined,
-                        'E-Total Active Production',
-                        fmtPower(eTotalPower, computedPower / 1000, 'kW')),
-                    const SizedBox(height: 16),
-                    _EnergyItem(Icons.bolt, 'Active Power',
-                        fmtPower(activePower, computedPower, 'W')),
-                  ],
-                );
+                final totalPower =
+                    (data['totalPower'] as num?)?.toDouble() ?? 0;
+                return _PowerItem(Icons.electric_meter_outlined,
+                    'Total Power', '${totalPower.toStringAsFixed(2)} kW');
               },
             ),
-            const SizedBox(height: 12),
-            latestAsync.whenData((d) {
-              if (d == null) return const SizedBox.shrink();
-              final ts = d['timestamp']?.toString();
-              final dt = ts != null ? DateTime.tryParse(ts) : null;
-              return Row(
-                children: [
-                  const Icon(Icons.schedule,
-                      size: 14, color: AppColors.textSecondary),
-                  const SizedBox(width: 4),
-                  Text(
-                      dt != null
-                          ? DateFormat('MMM d, h:mm a').format(dt)
-                          : '-',
-                      style: const TextStyle(
-                          color: AppColors.textSecondary, fontSize: 12)),
-                ],
-              );
-            }).value ??
-                const SizedBox.shrink(),
           ],
         ),
       ),
@@ -802,11 +579,11 @@ class _EnergyDataCard extends StatelessWidget {
   }
 }
 
-class _EnergyItem extends StatelessWidget {
+class _PowerItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  const _EnergyItem(this.icon, this.label, this.value);
+  const _PowerItem(this.icon, this.label, this.value);
 
   @override
   Widget build(BuildContext context) {

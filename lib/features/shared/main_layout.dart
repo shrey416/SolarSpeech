@@ -17,17 +17,21 @@ class _MainLayoutState extends State<MainLayout> {
 
   int get _selectedIndex {
     final p = widget.currentPath;
-    if (p.startsWith('/slms')) return 1;
-    if (p.startsWith('/sensors')) return 2;
-    if (p.startsWith('/alerts')) return 3;
-    return 0; // dashboard, plants, inverters
+    if (p == '/my-plants') return 1;
+    if (p.startsWith('/plants') || p.startsWith('/inverters')) return 2;
+    if (p.startsWith('/slms')) return 3;
+    if (p.startsWith('/sensors')) return 4;
+    if (p.startsWith('/alerts')) return 5;
+    return 0; // dashboard
   }
 
   static const _navItems = <_NavDef>[
     _NavDef(Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', '/dashboard'),
-    _NavDef(Icons.monitor_outlined, Icons.monitor, 'SLMS', '/slms'),
+    _NavDef(Icons.park_outlined, Icons.park, 'My Plants', '/my-plants'),
+    _NavDef(Icons.electrical_services_outlined, Icons.electrical_services, 'Inverters', '/inverters'),
+    _NavDef(Icons.monitor_outlined, Icons.monitor, 'Slms Devices', '/slms'),
     _NavDef(Icons.sensors_outlined, Icons.sensors, 'Sensors', '/sensors'),
-    _NavDef(Icons.warning_amber_outlined, Icons.warning_amber_rounded, 'Alerts', '/alerts'),
+    _NavDef(Icons.file_download_outlined, Icons.file_download, 'Exports', '/alerts'),
   ];
 
   @override

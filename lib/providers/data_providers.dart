@@ -220,6 +220,62 @@ final inverterCountByPlantProvider =
   return counts;
 });
 
+// ── MFM by ID ──
+final mfmByIdProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, id) async {
+  final res = await supabase
+      .from('MFM')
+      .select('*, Sensors(plantId, Plant(*))')
+      .eq('id', id)
+      .maybeSingle();
+  return res;
+});
+
+// ── MFM Data by date ──
+final mfmDataByDateProvider = FutureProvider.family<
+    List<Map<String, dynamic>>,
+    ({String mfmId, DateTime date})>((ref, params) async {
+  final start =
+      DateTime(params.date.year, params.date.month, params.date.day);
+  final end = start.add(const Duration(days: 1));
+  final res = await supabase
+      .from('MFMData')
+      .select()
+      .eq('mfmId', params.mfmId)
+      .gte('timestamp', start.toIso8601String())
+      .lt('timestamp', end.toIso8601String())
+      .order('timestamp');
+  return List<Map<String, dynamic>>.from(res);
+});
+
+// ── Temperature Device by ID ──
+final tempDeviceByIdProvider =
+    FutureProvider.family<Map<String, dynamic>?, String>((ref, id) async {
+  final res = await supabase
+      .from('TemperatureDevice')
+      .select('*, Sensors(plantId, Plant(*))')
+      .eq('id', id)
+      .maybeSingle();
+  return res;
+});
+
+// ── Temperature Data by date ──
+final tempDataByDateProvider = FutureProvider.family<
+    List<Map<String, dynamic>>,
+    ({String deviceId, DateTime date})>((ref, params) async {
+  final start =
+      DateTime(params.date.year, params.date.month, params.date.day);
+  final end = start.add(const Duration(days: 1));
+  final res = await supabase
+      .from('TemperatureData')
+      .select()
+      .eq('deviceId', params.deviceId)
+      .gte('timestamp', start.toIso8601String())
+      .lt('timestamp', end.toIso8601String())
+      .order('timestamp');
+  return List<Map<String, dynamic>>.from(res);
+});
+
 // legacy alias so alert screen keeps compiling
 final alertsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return [];
