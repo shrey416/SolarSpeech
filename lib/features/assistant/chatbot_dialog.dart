@@ -179,7 +179,10 @@ class _ChatbotDialogState extends State<ChatbotDialog>
         t.contains('declining') || t.contains('energy') ||
         t.contains('power') || t.contains('generation') ||
         t.contains('sensor') || t.contains('temperature') ||
-        t.contains('versus') || t.contains(' vs ');
+        t.contains('versus') || t.contains(' vs ') ||
+        (t.contains('alert') && (t.contains('inverter') || t.contains('mfm') ||
+            t.contains('temp') || t.contains('sensor') || t.contains('plant') ||
+            t.contains('device')));
   }
 
   bool _isNavigationCommand(String text) {
@@ -201,6 +204,12 @@ class _ChatbotDialogState extends State<ChatbotDialog>
     if (RegExp(r'^\s*(dashboard|alerts?|my\s*plants?|exports?)\s*$',
             caseSensitive: false)
         .hasMatch(t)) {
+      return true;
+    }
+    // Alert + show/open + device
+    if ((t.contains('show') || t.contains('open') || t.contains('go')) &&
+        RegExp(r'\b(alert|alarm|warning|fault)\b', caseSensitive: false).hasMatch(t) &&
+        RegExp(r'\b(inverter|mfm|temp|sensor|plant|site)\b', caseSensitive: false).hasMatch(t)) {
       return true;
     }
     // Device + number without data-question context
@@ -342,6 +351,7 @@ class _ChatbotDialogState extends State<ChatbotDialog>
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         children: [
+          _quickChip('Active alerts'),
           _quickChip('Compare inverters'),
           _quickChip('Energy today'),
           _quickChip('Last 5 days trend'),

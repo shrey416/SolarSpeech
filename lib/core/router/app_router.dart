@@ -90,7 +90,15 @@ final goRouter = GoRouter(
         ),
         GoRoute(
           path: '/alerts',
-          builder: (context, state) => const AlertsScreen(),
+          builder: (context, state) {
+            final deviceId = state.uri.queryParameters['deviceId'];
+            final deviceName = state.uri.queryParameters['deviceName'];
+            return AlertsScreen(
+              key: ValueKey('alerts_$deviceId'),
+              deviceId: deviceId,
+              deviceName: deviceName,
+            );
+          },
         ),
         GoRoute(
           path: '/exports',

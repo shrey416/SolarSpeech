@@ -44,6 +44,7 @@ class ChatbotService {
 
     try {
       // Detect intent — order matters (more specific first)
+      if (_isAlertIntent(text)) return await _handleAlertQuery(text);
       if (_isTrendIntent(text)) return await _handleTrend(text);
       if (_isHistoricalIntent(text)) return await _handleHistorical(text);
       if (_isCompareIntent(text)) return await _handleCompare(text);
@@ -72,6 +73,11 @@ class ChatbotService {
   // ══════════════════════════════════════════════
   //  Intent Detection
   // ══════════════════════════════════════════════
+
+  static bool _isAlertIntent(String t) =>
+      t.contains('alert') || t.contains('alarm') || t.contains('fault') ||
+      t.contains('issue') || t.contains('notification') ||
+      (t.contains('warning') && !t.contains('warming'));
 
   static bool _isCompareIntent(String t) =>
       t.contains('compare') || t.contains('versus') || t.contains(' vs ') ||
@@ -1272,6 +1278,110 @@ class ChatbotService {
     return await _comparePlants(text);
   }
 
+  static Future<ChatMessage> _handleAlertQuery(String text) async {
+    try {
+      // Try to find a specific device
+      List<Map<String, dynamic>> alerts;
+      String context = 'all devices';
+
+      // Check inverters
+      if (text.contains('inverter') || text.contains('converter') || text.contains('inv ')) {
+        final inverters = await _supabase.from('Inverter').select('id, name');
+        final match = _findEntityByFuzzyName(text, inverters);
+        if (match != null) {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceId', match['id']).order('triggeredAt', ascending: false));
+          context = match['name'] ?? 'inverter';
+        } else {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceType', 'Inverter').order('triggeredAt', ascending: false));
+          context = 'all inverters';
+        }
+      } else if (text.contains('mfm') || text.contains('meter') || text.contains('energy meter')) {
+        final mfms = await _supabase.from('MFM').select('id, name');
+        final match = _findEntityByFuzzyName(text, mfms);
+        if (match != null) {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceId', match['id']).order('triggeredAt', ascending: false));
+          context = match['name'] ?? 'MFM';
+        } else {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceType', 'MFM').order('triggeredAt', ascending: false));
+          context = 'all MFM sensors';
+        }
+      } else if (text.contains('temp') || text.contains('thermal') || text.contains('heat')) {
+        final temps = await _supabase.from('TemperatureDevice').select('id, name');
+        final match = _findEntityByFuzzyName(text, temps);
+        if (match != null) {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceId', match['id']).order('triggeredAt', ascending: false));
+          context = match['name'] ?? 'temperature device';
+        } else {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceType', 'TemperatureDevice').order('triggeredAt', ascending: false));
+          context = 'all temperature sensors';
+        }
+      } else if (text.contains('plant') || text.contains('site') || text.contains('farm')) {
+        final plants = await _supabase.from('Plant').select('id, name');
+        final match = _findEntityByFuzzyName(text, plants);
+        if (match != null) {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('plantId', match['id']).order('triggeredAt', ascending: false));
+          context = match['name'] ?? 'plant';
+        } else {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').order('triggeredAt', ascending: false));
+        }
+      } else {
+        // Try fuzzy match against all devices
+        final allDevices = <Map<String, dynamic>>[];
+        allDevices.addAll(List<Map<String, dynamic>>.from(await _supabase.from('Inverter').select('id, name')));
+        allDevices.addAll(List<Map<String, dynamic>>.from(await _supabase.from('MFM').select('id, name')));
+        allDevices.addAll(List<Map<String, dynamic>>.from(await _supabase.from('TemperatureDevice').select('id, name')));
+        final match = _findEntityByFuzzyName(text, allDevices);
+        if (match != null) {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').eq('deviceId', match['id']).order('triggeredAt', ascending: false));
+          context = match['name'] ?? 'device';
+        } else {
+          alerts = List<Map<String, dynamic>>.from(
+            await _supabase.from('Alert').select('*').order('triggeredAt', ascending: false));
+        }
+      }
+
+      if (alerts.isEmpty) {
+        return ChatMessage(text: 'No alerts found for **$context**.', isUser: false);
+      }
+
+      final active = alerts.where((a) => a['isActive'] == true).toList();
+      final resolved = alerts.where((a) => a['isActive'] == false).toList();
+      final critical = active.where((a) => a['severity'] == 'critical').length;
+      final warning = active.where((a) => a['severity'] == 'warning').length;
+      final info = active.where((a) => a['severity'] == 'info').length;
+
+      final buf = StringBuffer();
+      buf.writeln('**Alerts for $context**\n');
+      buf.writeln('Active: **${active.length}** | Resolved: **${resolved.length}**');
+      if (active.isNotEmpty) {
+        buf.writeln('\u{1F534} Critical: **$critical** | \u{1F7E1} Warning: **$warning** | \u{1F535} Info: **$info**');
+        buf.writeln('');
+        for (final a in active.take(5)) {
+          final sev = a['severity'] ?? 'info';
+          final icon = sev == 'critical' ? '\u{1F534}' : sev == 'warning' ? '\u{1F7E1}' : '\u{1F535}';
+          buf.writeln('$icon **${a['title']}**');
+          buf.writeln('  ${a['deviceName']} \u2022 ${a['category']}');
+        }
+        if (active.length > 5) {
+          buf.writeln('\n...and ${active.length - 5} more active alerts');
+        }
+      }
+
+      return ChatMessage(text: buf.toString().trim(), isUser: false);
+    } catch (e) {
+      return ChatMessage(text: 'Could not fetch alerts: $e', isUser: false);
+    }
+  }
+
   static ChatMessage _handleHelp() {
     return ChatMessage(
       text: '''**Hi! I'm your Solar Dashboard Assistant.** Here's what I can do:
@@ -1299,6 +1409,8 @@ class ChatbotService {
 **Sensors** — "Show MFM readings last 3 days", "Temperature sensor data"
 
 **Time Ranges** — "last 5 days", "this week", "last month", "yesterday", "past 2 weeks"
+
+**Alerts** — "Show alerts for inverter 1", "Any alarms on MFM 2?", "Temperature sensor alerts", "Plant alerts for Goa"
 
 **Navigate** — "Open inverter 1", "Go to Goa plant", "Show MFM 1 chart"
 

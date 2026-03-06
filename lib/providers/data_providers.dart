@@ -276,7 +276,45 @@ final tempDataByDateProvider = FutureProvider.family<
   return List<Map<String, dynamic>>.from(res);
 });
 
-// legacy alias so alert screen keeps compiling
-final alertsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  return [];
+// ── Alerts ──
+final allAlertsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final res = await supabase
+      .from('Alert')
+      .select('*, Plant(name)')
+      .order('triggeredAt', ascending: false);
+  return List<Map<String, dynamic>>.from(res);
 });
+
+final alertsByDeviceProvider = FutureProvider.family<
+    List<Map<String, dynamic>>, String>((ref, deviceId) async {
+  final res = await supabase
+      .from('Alert')
+      .select('*, Plant(name)')
+      .eq('deviceId', deviceId)
+      .order('triggeredAt', ascending: false);
+  return List<Map<String, dynamic>>.from(res);
+});
+
+final alertsByPlantProvider = FutureProvider.family<
+    List<Map<String, dynamic>>, String>((ref, plantId) async {
+  final res = await supabase
+      .from('Alert')
+      .select('*, Plant(name)')
+      .eq('plantId', plantId)
+      .order('triggeredAt', ascending: false);
+  return List<Map<String, dynamic>>.from(res);
+});
+
+// ── Alert filter state ──
+final alertSearchProvider2 =
+    NotifierProvider<_StringNotifier, String>(_StringNotifier.new);
+final alertPlantFilterProvider =
+    NotifierProvider<_StringNotifier, String>(_StringNotifier.new);
+final alertDeviceFilterProvider =
+    NotifierProvider<_StringNotifier, String>(_StringNotifier.new);
+final alertSeverityFilterProvider =
+    NotifierProvider<_StringNotifier, String>(_StringNotifier.new);
+
+// legacy alias
+final alertsProvider = allAlertsProvider;
