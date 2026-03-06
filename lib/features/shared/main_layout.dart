@@ -22,6 +22,7 @@ class _MainLayoutState extends State<MainLayout> {
     if (p.startsWith('/slms')) return 3;
     if (p.startsWith('/sensors')) return 4;
     if (p.startsWith('/alerts')) return 5;
+    if (p.startsWith('/exports')) return 6;
     return 0; // dashboard
   }
 
@@ -31,7 +32,8 @@ class _MainLayoutState extends State<MainLayout> {
     _NavDef(Icons.electrical_services_outlined, Icons.electrical_services, 'Inverters', '/inverters'),
     _NavDef(Icons.monitor_outlined, Icons.monitor, 'Slms Devices', '/slms'),
     _NavDef(Icons.sensors_outlined, Icons.sensors, 'Sensors', '/sensors'),
-    _NavDef(Icons.file_download_outlined, Icons.file_download, 'Exports', '/alerts'),
+    _NavDef(Icons.warning_amber_outlined, Icons.warning_amber, 'Alerts', '/alerts'),
+    _NavDef(Icons.file_download_outlined, Icons.file_download, 'Exports', '/exports'),
   ];
 
   @override

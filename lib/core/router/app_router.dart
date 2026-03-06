@@ -11,6 +11,7 @@ import '../../features/sensors/sensors_screen.dart';
 import '../../features/sensors/single_mfm_screen.dart';
 import '../../features/sensors/single_temp_screen.dart';
 import '../../features/alerts/alerts_screen.dart';
+import '../../features/exports/exports_screen.dart';
 
 final goRouter = GoRouter(
   initialLocation: '/dashboard',
@@ -77,6 +78,10 @@ final goRouter = GoRouter(
         GoRoute(
           path: '/alerts',
           builder: (context, state) => const AlertsScreen(),
+        ),
+        GoRoute(
+          path: '/exports',
+          builder: (context, state) => const ExportsScreen(),
         ),
       ],
     ),
