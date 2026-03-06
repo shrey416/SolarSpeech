@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
-import '../assistant/ai_assistant_dialog.dart';
+import '../ai_suggestions/providers/suggestion_providers.dart';
+import '../ai_suggestions/widgets/ai_help_button.dart';
 
-class MainLayout extends StatefulWidget {
+class MainLayout extends ConsumerStatefulWidget {
   final Widget child;
   final String currentPath;
   const MainLayout({super.key, required this.child, required this.currentPath});
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends ConsumerState<MainLayout> {
   bool _isExpanded = true;
 
   int get _selectedIndex {
@@ -36,6 +38,51 @@ class _MainLayoutState extends State<MainLayout> {
     _NavDef(Icons.file_download_outlined, Icons.file_download, 'Exports', '/exports'),
   ];
 
+  String? _lastUpdatedPath;
+
+  @override
+  void didUpdateWidget(covariant MainLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentPath != widget.currentPath) {
+      // Defer provider modification to after the build phase
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateContext();
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateContext();
+    });
+  }
+
+  void _updateContext() {
+    final path = widget.currentPath;
+    // Avoid redundant updates for the same path
+    if (_lastUpdatedPath == path) return;
+    _lastUpdatedPath = path;
+
+    final params = <String, String>{};
+    // Extract route params from path
+    final plantMatch = RegExp(r'/plants/([^/]+)').firstMatch(path);
+    if (plantMatch != null) params['plantId'] = plantMatch.group(1)!;
+    final invMatch = RegExp(r'/inverters/([^/]+)').firstMatch(path);
+    if (invMatch != null) params['inverterId'] = invMatch.group(1)!;
+    final mfmMatch = RegExp(r'/mfm/([^/]+)').firstMatch(path);
+    if (mfmMatch != null) params['mfmId'] = mfmMatch.group(1)!;
+    final tempMatch = RegExp(r'/temp/([^/]+)').firstMatch(path);
+    if (tempMatch != null) params['deviceId'] = tempMatch.group(1)!;
+    final slmsMatch = RegExp(r'/slms/([^/]+)').firstMatch(path);
+    if (slmsMatch != null) params['inverterId'] = slmsMatch.group(1)!;
+
+    ref.read(screenContextProvider.notifier).update(path, params: params);
+    // Re-show suggestion bar on navigation
+    ref.read(suggestionBarVisibleProvider.notifier).show();
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -45,25 +92,19 @@ class _MainLayoutState extends State<MainLayout> {
       drawer: isDesktop ? null : _buildDrawer(),
       appBar: isDesktop
           ? null
-          : AppBar(
-              title: const Text('Solar Dashboard'),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.mic),
-                  onPressed: () => _showAssistant(context),
-                ),
-              ],
-            ),
+          : AppBar(title: const Text('Solar Dashboard')),
       body: Row(
         children: [
           if (isDesktop) _buildSidebar(),
-          Expanded(child: widget.child),
+          Expanded(
+            child: Stack(
+              children: [
+                widget.child,
+                const AiHelpButton(),
+              ],
+            ),
+          ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.mic, color: Colors.white),
-        onPressed: () => _showAssistant(context),
       ),
     );
   }
@@ -220,12 +261,6 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 
-  void _showAssistant(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => const AiAssistantDialog(),
-    );
-  }
 }
 
 class _NavDef {
