@@ -27,12 +27,12 @@ class DashboardScreen extends ConsumerWidget {
           // ── Greeting ──
           Text('Namaste, Dhruti!',
               style: TextStyle(
-                  fontSize: isMobile ? 14 : 16,
+                  fontSize: isMobile ? 12 : 14,
                   color: AppColors.primary)),
           const SizedBox(height: 2),
           Text('Solar Performance Overview',
               style: TextStyle(
-                  fontSize: isMobile ? 20 : 26,
+                  fontSize: isMobile ? 16 : 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary)),
           const SizedBox(height: 20),
@@ -107,20 +107,21 @@ class DashboardScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Header row
+                  const Text('Plants Details',
+                      style: TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 12,
                     runSpacing: 8,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      const Text('Plants Details',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 8),
                       // Date picker
                       ActionChip(
-                        avatar: const Icon(Icons.calendar_today, size: 16),
+                        avatar: const Icon(Icons.calendar_today, size: 14),
                         label: Text(
-                            DateFormat('d MMM yyyy').format(selectedDate)),
+                            DateFormat('d MMM yyyy').format(selectedDate),
+                            style: const TextStyle(fontSize: 12)),
                         onPressed: () async {
                           final d = await showDatePicker(
                             context: context,
@@ -133,20 +134,22 @@ class DashboardScreen extends ConsumerWidget {
                           }
                         },
                       ),
-                      SizedBox(
-                        width: 220,
-                        height: 38,
-                        child: TextField(
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.search, size: 18),
-                            hintText: 'Search Plants',
-                            contentPadding: EdgeInsets.symmetric(vertical: 0),
-                          ),
-                          onChanged: (v) =>
-                              ref.read(plantSearchProvider.notifier).set(v),
-                        ),
-                      ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 36,
+                    child: TextField(
+                      style: const TextStyle(fontSize: 13),
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search, size: 16),
+                        hintText: 'Search Plants',
+                        hintStyle: TextStyle(fontSize: 13),
+                        contentPadding: EdgeInsets.symmetric(vertical: 0),
+                      ),
+                      onChanged: (v) =>
+                          ref.read(plantSearchProvider.notifier).set(v),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   plantsAsync.when(
@@ -247,7 +250,7 @@ class _DevicesPieChart extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Total Devices',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             countAsync.when(
               loading: () => const SizedBox(

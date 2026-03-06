@@ -25,26 +25,30 @@ class InvertersListScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           Row(
             children: [
-              const Text('Inverters',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary)),
-              const Spacer(),
-              SizedBox(
-                width: 220,
-                height: 38,
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search, size: 18),
-                    hintText: 'Search Inverters...',
-                    contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (v) =>
-                      ref.read(deviceSearchProvider.notifier).set(v),
-                ),
+              const Flexible(
+                child: Text('Inverters',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary)),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: TextField(
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 16),
+                hintText: 'Search Inverters...',
+                hintStyle: TextStyle(fontSize: 13),
+                contentPadding: EdgeInsets.symmetric(vertical: 0),
+              ),
+              onChanged: (v) =>
+                  ref.read(deviceSearchProvider.notifier).set(v),
+            ),
           ),
           const SizedBox(height: 16),
           invertersAsync.when(
@@ -73,6 +77,7 @@ class InvertersListScreen extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
                     showCheckboxColumn: false,
+                    columnSpacing: 24,
                     headingRowColor:
                         WidgetStateProperty.all(AppColors.primaryLighter),
                     columns: const [

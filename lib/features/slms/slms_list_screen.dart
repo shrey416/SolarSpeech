@@ -20,7 +20,7 @@ class SlmsListScreen extends ConsumerWidget {
           const SizedBox(height: 4),
           const Text('SLMS Devices',
               style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary)),
           const SizedBox(height: 24),

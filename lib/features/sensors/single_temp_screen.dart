@@ -11,8 +11,9 @@ import '../shared/breadcrumb_bar.dart';
 class SingleTempScreen extends ConsumerStatefulWidget {
   final String deviceId;
   final String plantId;
+  final String? initialDate;
   const SingleTempScreen(
-      {super.key, required this.deviceId, required this.plantId});
+      {super.key, required this.deviceId, required this.plantId, this.initialDate});
 
   @override
   ConsumerState<SingleTempScreen> createState() => _SingleTempScreenState();
@@ -24,7 +25,12 @@ class _SingleTempScreenState extends ConsumerState<SingleTempScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime(2026, 3, 5);
+    if (widget.initialDate != null) {
+      final parsed = DateTime.tryParse(widget.initialDate!);
+      _selectedDate = parsed ?? DateTime(2026, 3, 5);
+    } else {
+      _selectedDate = DateTime(2026, 3, 5);
+    }
   }
 
   @override

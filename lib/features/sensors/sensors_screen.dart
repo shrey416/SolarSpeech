@@ -6,7 +6,8 @@ import '../../providers/data_providers.dart';
 import '../shared/breadcrumb_bar.dart';
 
 class SensorsScreen extends ConsumerStatefulWidget {
-  const SensorsScreen({super.key});
+  final int initialTab;
+  const SensorsScreen({super.key, this.initialTab = 0});
 
   @override
   ConsumerState<SensorsScreen> createState() => _SensorsScreenState();
@@ -20,7 +21,7 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this, initialIndex: widget.initialTab);
     _tabCtrl.addListener(() => setState(() {}));
   }
 
@@ -47,31 +48,32 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
             children: [
               const Text('Sensors',
                   style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary)),
-              const Spacer(),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
-                icon: const Icon(Icons.filter_alt_outlined, size: 16),
-                label: const Text('Filter'),
+                icon: const Icon(Icons.filter_alt_outlined, size: 14),
+                label: const Text('Filter', style: TextStyle(fontSize: 12)),
                 onPressed: () {},
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 220,
-                height: 38,
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search, size: 18),
-                    hintText: 'Search Devices',
-                    contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (v) => setState(() => _search = v),
-                ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: TextField(
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 16),
+                hintText: 'Search Devices',
+                hintStyle: TextStyle(fontSize: 13),
+                contentPadding: EdgeInsets.symmetric(vertical: 0),
+              ),
+              onChanged: (v) => setState(() => _search = v),
+            ),
+          ),
+          const SizedBox(height: 12),
           // Tabs
           Container(
             decoration: BoxDecoration(
@@ -88,6 +90,7 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               tabs: const [
+                Tab(text: 'All'),
                 Tab(text: 'MFM'),
                 Tab(text: 'WMS'),
                 Tab(text: 'Temperature'),
@@ -99,12 +102,125 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
           IndexedStack(
             index: _tabCtrl.index,
             children: [
+              _AllTab(search: _search),
               _MfmTab(search: _search),
               _WfmTab(search: _search),
               _TempTab(search: _search),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── All Tab (shows MFM + WMS + Temperature combined) ──
+class _AllTab extends ConsumerWidget {
+  final String search;
+  const _AllTab({required this.search});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mfmsAsync = ref.watch(allMfmsProvider);
+    final wfmsAsync = ref.watch(allWfmsProvider);
+    final tempsAsync = ref.watch(allTempDevicesProvider);
+
+    final isLoading = mfmsAsync.isLoading || wfmsAsync.isLoading || tempsAsync.isLoading;
+    if (isLoading) return const Center(child: CircularProgressIndicator());
+
+    final hasError = mfmsAsync.hasError || wfmsAsync.hasError || tempsAsync.hasError;
+    if (hasError) return const Text('Error loading devices');
+
+    final mfms = mfmsAsync.value ?? [];
+    final wfms = wfmsAsync.value ?? [];
+    final temps = tempsAsync.value ?? [];
+
+    // Build unified rows: [{name, category, type, id, plantId}]
+    final allDevices = <Map<String, dynamic>>[];
+    for (final m in mfms) {
+      allDevices.add({
+        'name': m['name']?.toString() ?? 'MFM',
+        'category': 'MFM',
+        'id': m['id'],
+        'plantId': m['Sensors']?['plantId']?.toString() ?? '',
+        'type': 'mfm',
+        'raw': m,
+      });
+    }
+    for (final w in wfms) {
+      allDevices.add({
+        'name': w['name']?.toString() ?? 'WMS',
+        'category': 'WMS',
+        'id': w['id'],
+        'plantId': w['Sensors']?['plantId']?.toString() ?? '',
+        'type': 'wms',
+        'raw': w,
+      });
+    }
+    for (final t in temps) {
+      allDevices.add({
+        'name': t['name']?.toString() ?? 'Temperature',
+        'category': 'Temperature',
+        'id': t['id'],
+        'plantId': t['Sensors']?['plantId']?.toString() ?? '',
+        'type': 'temp',
+        'raw': t,
+      });
+    }
+
+    final filtered = search.isEmpty
+        ? allDevices
+        : allDevices
+            .where((d) =>
+                d['name'].toString().toLowerCase().contains(search.toLowerCase()) ||
+                d['category'].toString().toLowerCase().contains(search.toLowerCase()))
+            .toList();
+
+    if (filtered.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(
+            child: Text('No devices found',
+                style: TextStyle(color: AppColors.textSecondary))),
+      );
+    }
+
+    return Card(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          showCheckboxColumn: false,
+          headingRowColor: WidgetStateProperty.all(AppColors.primaryLighter),
+          columns: const [
+            DataColumn(label: Text('')),
+            DataColumn(label: Text('Device Name')),
+            DataColumn(label: Text('Category')),
+          ],
+          rows: filtered.map((d) {
+            final color = d['type'] == 'mfm'
+                ? AppColors.alert
+                : d['type'] == 'wms'
+                    ? AppColors.active
+                    : AppColors.warning;
+            return DataRow(
+              onSelectChanged: (_) {
+                final plantId = d['plantId'] as String;
+                if (plantId.isEmpty) return;
+                if (d['type'] == 'mfm') {
+                  context.go('/plants/$plantId/mfm/${d['id']}');
+                } else if (d['type'] == 'temp') {
+                  context.go('/plants/$plantId/temp/${d['id']}');
+                }
+              },
+              cells: [
+                DataCell(Icon(Icons.circle, color: color, size: 10)),
+                DataCell(Text(d['name'],
+                    style: const TextStyle(fontWeight: FontWeight.w600))),
+                DataCell(Text(d['category'])),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }

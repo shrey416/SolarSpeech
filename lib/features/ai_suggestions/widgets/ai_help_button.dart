@@ -6,6 +6,7 @@ import '../models/suggestion.dart';
 import '../providers/suggestion_providers.dart';
 import '../services/behavior_tracker.dart';
 import '../../assistant/ai_assistant_dialog.dart';
+import '../../assistant/chatbot_dialog.dart';
 import 'report_dialog.dart';
 
 /// A compact AI help button in the bottom-right that expands into a panel
@@ -73,7 +74,7 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
               child: Container(
                 width: panelWidth,
                 margin: const EdgeInsets.only(bottom: 12),
-                constraints: const BoxConstraints(maxHeight: 360),
+                constraints: const BoxConstraints(maxHeight: 420),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
@@ -115,6 +116,9 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
                     ),
                     const Divider(
                         height: 1, color: Colors.white12, thickness: 1),
+                    _buildChatbotRow(),
+                    const Divider(
+                        height: 1, color: Colors.white10, thickness: 1),
                     _buildVoiceRow(),
                   ],
                 ),
@@ -197,6 +201,49 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
             onTap: () => _handleTap(context, s),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildChatbotRow() {
+    return InkWell(
+      onTap: () {
+        _toggle();
+        showDialog(
+          context: context,
+          builder: (context) => const ChatbotDialog(),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF10B981), size: 18),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Chat Assistant',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500)),
+                  Text('Ask questions, compare data',
+                      style: TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: Colors.white24, size: 20),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/shared/main_layout.dart';
 import '../../features/dashboard/dashboard_screen.dart';
@@ -45,6 +46,8 @@ final goRouter = GoRouter(
           builder: (context, state) => SingleInverterScreen(
             inverterId: state.pathParameters['inverterId']!,
             plantId: state.pathParameters['plantId']!,
+            initialChart: state.uri.queryParameters['chart'],
+            initialDate: state.uri.queryParameters['date'],
           ),
         ),
         GoRoute(
@@ -52,6 +55,7 @@ final goRouter = GoRouter(
           builder: (context, state) => SingleMfmScreen(
             mfmId: state.pathParameters['mfmId']!,
             plantId: state.pathParameters['plantId']!,
+            initialDate: state.uri.queryParameters['date'],
           ),
         ),
         GoRoute(
@@ -59,6 +63,7 @@ final goRouter = GoRouter(
           builder: (context, state) => SingleTempScreen(
             deviceId: state.pathParameters['deviceId']!,
             plantId: state.pathParameters['plantId']!,
+            initialDate: state.uri.queryParameters['date'],
           ),
         ),
         GoRoute(
@@ -73,7 +78,14 @@ final goRouter = GoRouter(
         ),
         GoRoute(
           path: '/sensors',
-          builder: (context, state) => const SensorsScreen(),
+          builder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            int initialTab = 0;
+            if (tabParam == 'mfm') initialTab = 1;
+            if (tabParam == 'wms') initialTab = 2;
+            if (tabParam == 'temperature') initialTab = 3;
+            return SensorsScreen(key: ValueKey('sensors_$tabParam'), initialTab: initialTab);
+          },
         ),
         GoRoute(
           path: '/alerts',

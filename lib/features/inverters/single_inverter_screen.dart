@@ -11,8 +11,10 @@ import '../shared/breadcrumb_bar.dart';
 class SingleInverterScreen extends ConsumerStatefulWidget {
   final String inverterId;
   final String plantId;
+  final String? initialChart;
+  final String? initialDate;
   const SingleInverterScreen(
-      {super.key, required this.inverterId, required this.plantId});
+      {super.key, required this.inverterId, required this.plantId, this.initialChart, this.initialDate});
 
   @override
   ConsumerState<SingleInverterScreen> createState() =>
@@ -47,7 +49,18 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime(2026, 3, 5);
+    if (widget.initialDate != null) {
+      final parsed = DateTime.tryParse(widget.initialDate!);
+      _selectedDate = parsed ?? DateTime(2026, 3, 5);
+    } else {
+      _selectedDate = DateTime(2026, 3, 5);
+    }
+    if (widget.initialChart != null) {
+      final match = _chartOptions.where(
+        (o) => o.toLowerCase() == widget.initialChart!.toLowerCase(),
+      );
+      if (match.isNotEmpty) _selectedChart = match.first;
+    }
   }
 
   @override
@@ -99,34 +112,46 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                           color: AppColors.active,
                           fontSize: 13,
                           fontWeight: FontWeight.w500)),
-                  IconButton(
-                    icon: const Icon(Icons.info_outline),
-                    onPressed: () {},
-                  ),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.warning_amber_rounded, size: 16),
-                    label: const Text('Alerts'),
-                    onPressed: () => context.go('/alerts'),
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary),
-                  ),
                 ],
               ),
               const SizedBox(height: 4),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              Row(
                 children: [
-                  Text(invName,
-                      style: const TextStyle(
-                          fontSize: 24, fontWeight: FontWeight.bold)),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Export'),
-                    onPressed: () => _exportCsv(context),
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary),
+                  Expanded(
+                    child: Text(invName,
+                        style: const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.bold)),
+                  ),
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.warning_amber_rounded, size: 14),
+                      label: Text('Alerts',
+                          style: TextStyle(fontSize: isMobile ? 11 : 13)),
+                      onPressed: () => context.go('/alerts'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton.icon(
+                      icon: const Icon(Icons.download, size: 14),
+                      label: Text('Export',
+                          style: TextStyle(fontSize: isMobile ? 11 : 13)),
+                      onPressed: () => _exportCsv(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -334,6 +359,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     for (int i = 0; i < records.length; i++) {
       final r = records[i];
       final x = _tsToHours(r);
+      if (x < 2.0 || x > 15.0) continue;
       for (final ch in _dcChannels) {
         final val = (r['$prefix$ch'] as num?)?.toDouble();
         if (val != null) {
@@ -361,8 +387,8 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     }
 
     return LineChart(LineChartData(
-      minX: 0,
-      maxX: 24,
+      minX: 2,
+      maxX: 15,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (_) => Colors.white,
@@ -405,15 +431,16 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     String unit,
     String label,
   ) {
-    final spots = computeFn(records);
+    final allSpots = computeFn(records);
+    final spots = allSpots.where((s) => s.x >= 2.0 && s.x <= 15.0).toList();
     if (spots.isEmpty) {
       return Center(
           child: Text('No data',
               style: const TextStyle(color: AppColors.textSecondary)));
     }
     return LineChart(LineChartData(
-      minX: 0,
-      maxX: 24,
+      minX: 2,
+      maxX: 15,
       lineTouchData: LineTouchData(
         touchTooltipData: LineTouchTooltipData(
           getTooltipColor: (_) => Colors.white,
@@ -464,10 +491,10 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
         sideTitles: SideTitles(
           showTitles: true,
           reservedSize: 28,
-          interval: 3,
+          interval: 1,
           getTitlesWidget: (value, meta) {
             final h = value.toInt();
-            if (h < 0 || h > 24 || h % 3 != 0) {
+            if (h < 2 || h > 15 || h % 2 != 0) {
               return const SizedBox.shrink();
             }
             return Padding(

@@ -18,27 +18,24 @@ class AlertsScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 4),
           // Header
-          Row(
-            children: [
-              const Text('Alerts',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary)),
-              const Spacer(),
-              SizedBox(
-                width: 250,
-                height: 38,
-                child: TextField(
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.search, size: 18),
-                    hintText: 'Alarm Name',
-                    contentPadding: EdgeInsets.symmetric(vertical: 0),
-                  ),
-                  onChanged: (_) {},
-                ),
+          const Text('Alerts',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary)),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: TextField(
+              style: const TextStyle(fontSize: 13),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search, size: 16),
+                hintText: 'Alarm Name',
+                hintStyle: TextStyle(fontSize: 13),
+                contentPadding: EdgeInsets.symmetric(vertical: 0),
               ),
-            ],
+              onChanged: (_) {},
+            ),
           ),
           const SizedBox(height: 16),
           // Filters

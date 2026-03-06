@@ -19,7 +19,7 @@ class ExportsScreen extends StatelessWidget {
           const SizedBox(height: 4),
           const Text('Exports',
               style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary)),
           const SizedBox(height: 24),
