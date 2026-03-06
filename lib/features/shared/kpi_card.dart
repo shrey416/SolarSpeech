@@ -5,36 +5,57 @@ class KpiCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
-  final bool isGreen;
+  final Color? color;
+  final String? subtitle;
 
   const KpiCard({
-    Key? key, required this.title, required this.value, required this.icon, this.isGreen = false
-  }) : super(key: key);
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    this.color,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(18),
         child: Row(
-          children:[
+          children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isGreen ? AppColors.active.withOpacity(0.1) : AppColors.primaryLight,
+                color: c.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: isGreen ? AppColors.active : AppColors.primary, size: 28),
+              child: Icon(icon, color: c, size: 24),
             ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children:[
-                Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14)),
-                const SizedBox(height: 4),
-                Text(value, style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold)),
-              ],
-            )
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(value,
+                      style: TextStyle(
+                          color: c,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text(title,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
+                  if (subtitle != null) ...[                    const SizedBox(height: 2),
+                    Text(subtitle!,
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 11)),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
