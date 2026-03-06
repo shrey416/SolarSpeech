@@ -58,6 +58,19 @@ class LlmNavigationService {
   static final RegExp _sensorKw = RegExp(
     r'\b(sensor)\b', caseSensitive: false);
 
+  // ── Alert keywords ──
+  static final RegExp _alertKw = RegExp(
+    r'\b(alert|alerts|alarm|alarms|warning|warnings|fault|faults|issue|issues|notification|notifications)\b',
+    caseSensitive: false);
+  static final RegExp _alertDeviceKw = RegExp(
+    r'\b(inverter|inv|converter|invertor|mfm|meter|temp|temperature|thermal|sensor|plant|site|station|farm)\b',
+    caseSensitive: false);
+
+  /// Check if text mentions both alert + device keywords
+  static bool _hasAlertDeviceIntent(String text) {
+    return _alertKw.hasMatch(text) && _alertDeviceKw.hasMatch(text);
+  }
+
   static final RegExp _chartStripKw = RegExp(
     r'\b(graph|chart|voltage|current|power|energy|pv|dc|active|total|today|'
     r'e-total|e-today|cumulative|daily|live|real|watt|watts|with|of)\b',
@@ -432,6 +445,14 @@ class LlmNavigationService {
     }
 
     // ────────────────────────────────────────────
+    // 0. Alert + device detection (before tab matching)
+    // ────────────────────────────────────────────
+    if (_hasAlertDeviceIntent(text)) {
+      final alertRoute = await _resolveAlertForDevice(text);
+      if (alertRoute != null) return alertRoute;
+    }
+
+    // ────────────────────────────────────────────
     // 1. Exact tab / section matching (fastest)
     // ────────────────────────────────────────────
     final tabRoute = _matchTab(text);
@@ -483,6 +504,88 @@ class LlmNavigationService {
     // ────────────────────────────────────────────
     final fallback = await _fuzzyFallback(text);
     return fallback != null ? finalize(fallback) : null;
+  }
+
+  // ══════════════════════════════════════════════
+  //  Alert + device resolution
+  // ══════════════════════════════════════════════
+  static Future<String?> _resolveAlertForDevice(String text) async {
+    try {
+      // Strip alert keywords to isolate device reference
+      final deviceText = text
+          .replaceAll(_alertKw, ' ')
+          .replaceAll(_filler, ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      final id = _extractIdentifier(deviceText.isNotEmpty ? deviceText : text);
+
+      // Try inverter
+      if (_inverterKw.hasMatch(text)) {
+        final rows = await _supabase.from('Inverter').select('id, name');
+        final match = _findBestMatch(rows, id, text);
+        if (match != null) {
+          return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
+        }
+      }
+
+      // Try MFM
+      if (_mfmKw.hasMatch(text)) {
+        final rows = await _supabase.from('MFM').select('id, name');
+        final match = _findBestMatch(rows, id, text);
+        if (match != null) {
+          return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
+        }
+      }
+
+      // Try temperature
+      if (_tempKw.hasMatch(text)) {
+        final rows = await _supabase.from('TemperatureDevice').select('id, name');
+        final match = _findBestMatch(rows, id, text);
+        if (match != null) {
+          return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
+        }
+      }
+
+      // Try plant — filter alerts by plant
+      if (_plantKw.hasMatch(text)) {
+        final rows = await _supabase.from('Plant').select('id, name');
+        final match = _findBestMatch(rows, id, text);
+        if (match != null) {
+          // Plant alerts: use plantId as deviceId (AlertsScreen will still show relevant alerts)
+          return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
+        }
+      }
+
+      // Try generic sensor
+      if (_sensorKw.hasMatch(text)) {
+        // Try MFM first, then temp
+        final mfms = await _supabase.from('MFM').select('id, name');
+        final mfmMatch = _findBestMatch(mfms, id, text);
+        if (mfmMatch != null) {
+          return '/alerts?deviceId=${Uri.encodeComponent(mfmMatch['id'])}&deviceName=${Uri.encodeComponent(mfmMatch['name'] ?? '')}';
+        }
+        final temps = await _supabase.from('TemperatureDevice').select('id, name');
+        final tempMatch = _findBestMatch(temps, id, text);
+        if (tempMatch != null) {
+          return '/alerts?deviceId=${Uri.encodeComponent(tempMatch['id'])}&deviceName=${Uri.encodeComponent(tempMatch['name'] ?? '')}';
+        }
+      }
+
+      // Fuzzy fallback: try matching against all device names
+      final allDevices = <Map<String, dynamic>>[];
+      final inverters = await _supabase.from('Inverter').select('id, name');
+      allDevices.addAll(List<Map<String, dynamic>>.from(inverters));
+      final mfms = await _supabase.from('MFM').select('id, name');
+      allDevices.addAll(List<Map<String, dynamic>>.from(mfms));
+      final temps = await _supabase.from('TemperatureDevice').select('id, name');
+      allDevices.addAll(List<Map<String, dynamic>>.from(temps));
+
+      final match = _findBestMatch(allDevices, id, text);
+      if (match != null) {
+        return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ══════════════════════════════════════════════
