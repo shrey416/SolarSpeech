@@ -16,4 +16,8 @@ class AppColors {
   static const Color chartGreen = Color(0xFF34D399);
   static const Color chartOrange = Color(0xFFFBBF24);
   static const Color chartPurple = Color(0xFFA78BFA);
+  static const Color chartRed = Color(0xFFF87171);
+  static const Color chartTeal = Color(0xFF2DD4BF);
+  static const Color chartPink = Color(0xFFF472B6);
+  static const Color chartYellow = Color(0xFFFDE047);
 }

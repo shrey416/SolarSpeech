@@ -227,20 +227,30 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
                     const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Text('Error: $e'),
                 data: (inverters) {
-                  var filtered = inverters;
+                  // Group inverters by base name (strip -Strings/-Power suffixes)
+                  final groups = <String, List<Map<String, dynamic>>>{};
+                  for (final inv in inverters) {
+                    final name = inv['name']?.toString() ?? 'Inverter';
+                    final baseName = name.replaceAll(
+                        RegExp(r'[-_](Strings|Power|String)$',
+                            caseSensitive: false),
+                        '');
+                    groups.putIfAbsent(baseName, () => []).add(inv);
+                  }
+
+                  var groupEntries = groups.entries.toList();
                   if (_deviceFilter != 'All' &&
                       _deviceFilter != 'Inverter') {
-                    filtered = [];
+                    groupEntries = [];
                   }
                   if (_deviceSearch.isNotEmpty) {
-                    filtered = filtered
-                        .where((inv) => (inv['name'] ?? '')
-                            .toString()
+                    groupEntries = groupEntries
+                        .where((e) => e.key
                             .toLowerCase()
                             .contains(_deviceSearch.toLowerCase()))
                         .toList();
                   }
-                  if (filtered.isEmpty) {
+                  if (groupEntries.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.all(24),
                       child: Center(
@@ -252,13 +262,18 @@ class _PlantsScreenState extends ConsumerState<PlantsScreen> {
                   return Wrap(
                     spacing: 12,
                     runSpacing: 12,
-                    children: filtered
-                        .map((inv) => _DeviceCard(
-                              name: inv['name'] ?? 'Inverter',
-                              type: 'Inverter',
-                              onTap: () => context.go(
-                                  '/plants/${widget.plantId}/inverters/${inv['id']}'),
-                            ))
+                    children: groupEntries
+                        .map((entry) {
+                          // Use the first inverter's ID for navigation
+                          final firstInv = entry.value.first;
+                          final id = firstInv['id'] as String;
+                          return _InverterDeviceCard(
+                            name: entry.key,
+                            inverterId: id,
+                            onTap: () => context.go(
+                                '/plants/${widget.plantId}/inverters/$id'),
+                          );
+                        })
                         .toList(),
                   );
                 },
@@ -408,6 +423,95 @@ class _DeviceCard extends StatelessWidget {
                 Text(type,
                     style: const TextStyle(
                         color: AppColors.textSecondary, fontSize: 11)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Inverter device card with today's energy ──
+class _InverterDeviceCard extends ConsumerWidget {
+  final String name;
+  final String inverterId;
+  final VoidCallback? onTap;
+  const _InverterDeviceCard(
+      {required this.name, required this.inverterId, this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final latestAsync = ref.watch(latestInverterDataProvider(inverterId));
+    return SizedBox(
+      width: 240,
+      child: Card(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.electrical_services,
+                        color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(name,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13))),
+                    const Icon(Icons.circle,
+                        color: AppColors.active, size: 8),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text('Inverter',
+                    style: TextStyle(
+                        color: AppColors.textSecondary, fontSize: 11)),
+                const Divider(height: 16),
+                latestAsync.when(
+                  loading: () => const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2)),
+                  error: (_, __) => const Text('--',
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
+                  data: (data) {
+                    if (data == null) {
+                      return const Text('No data',
+                          style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12));
+                    }
+                    double totalPower = 0;
+                    for (final ch in [1, 2, 3, 4, 5, 6, 7, 8]) {
+                      final v =
+                          (data['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
+                      final c =
+                          (data['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
+                      totalPower += v * c;
+                    }
+                    return Row(
+                      children: [
+                        const Icon(Icons.solar_power_outlined,
+                            size: 16, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                            'Today: ${(totalPower / 1000).toStringAsFixed(2)} kW',
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600)),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),

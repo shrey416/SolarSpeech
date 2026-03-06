@@ -150,7 +150,7 @@ class _LatestStringDataScreenState
                   final channels = <int>[];
                   if (records.isNotEmpty) {
                     final latest = records.last;
-                    for (final ch in [1, 2, 3, 4, 8]) {
+                    for (final ch in [1, 2, 3, 4, 5, 6, 7, 8]) {
                       if (latest['dcCurrent$ch'] != null) {
                         channels.add(ch);
                       }
@@ -202,7 +202,7 @@ class _LatestStringDataScreenState
     final channelSpots = <int, List<FlSpot>>{};
     for (int i = 0; i < records.length; i++) {
       final r = records[i];
-      for (final ch in [1, 2, 3, 4, 8]) {
+      for (final ch in [1, 2, 3, 4, 5, 6, 7, 8]) {
         final v = (r['dcCurrent$ch'] as num?)?.toDouble();
         if (v != null) {
           channelSpots.putIfAbsent(ch, () => []);
@@ -219,6 +219,9 @@ class _LatestStringDataScreenState
       AppColors.chartOrange,
       AppColors.chartPurple,
       AppColors.chartBlue,
+      AppColors.chartRed,
+      AppColors.chartTeal,
+      AppColors.chartPink,
     ];
     int ci = 0;
     return LineChart(LineChartData(

@@ -21,6 +21,28 @@ class SingleInverterScreen extends ConsumerStatefulWidget {
 
 class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
   late DateTime _selectedDate;
+  String _selectedChart = 'Total PV Current';
+
+  static const _chartOptions = [
+    'Total PV Current',
+    'E-Total Power',
+    'Total PV Voltage',
+    'E-Today Power',
+    'Active Power',
+  ];
+
+  static const _dcChannels = [1, 2, 3, 4, 5, 6, 7, 8];
+
+  static const _channelColors = <Color>[
+    AppColors.primary,
+    AppColors.chartGreen,
+    AppColors.chartOrange,
+    AppColors.chartPurple,
+    AppColors.chartBlue,
+    AppColors.chartRed,
+    AppColors.chartTeal,
+    AppColors.chartPink,
+  ];
 
   @override
   void initState() {
@@ -45,7 +67,8 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
       data: (inv) {
         if (inv == null) return const Center(child: Text('Inverter not found'));
         final invName = inv['name'] ?? 'Inverter';
-        final plantName = inv['Plant']?['name'] ?? plantAsync.value?['name'] ?? 'Plant';
+        final plantName =
+            inv['Plant']?['name'] ?? plantAsync.value?['name'] ?? 'Plant';
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -94,7 +117,6 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
                   const Spacer(),
-                  // ── Export CSV ──
                   FilledButton.icon(
                     icon: const Icon(Icons.download, size: 16),
                     label: const Text('Export'),
@@ -130,26 +152,52 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
 
               const SizedBox(height: 24),
 
-              // ── String Current Chart ──
+              // ── Charts Section ──
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ── Chart type selector chips ──
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _chartOptions
+                            .map((opt) => ChoiceChip(
+                                  label: Text(opt,
+                                      style: const TextStyle(fontSize: 12)),
+                                  selected: _selectedChart == opt,
+                                  onSelected: (v) {
+                                    if (v) {
+                                      setState(
+                                          () => _selectedChart = opt);
+                                    }
+                                  },
+                                  selectedColor: AppColors.primaryLight,
+                                  labelStyle: TextStyle(
+                                    color: _selectedChart == opt
+                                        ? AppColors.primary
+                                        : AppColors.textSecondary,
+                                    fontWeight: _selectedChart == opt
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // ── Date controls ──
                       Wrap(
                         spacing: 12,
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          const Text('String Current',
-                              style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(width: 8),
                           ActionChip(
-                            avatar:
-                                const Icon(Icons.calendar_today, size: 14),
+                            avatar: const Icon(Icons.calendar_today,
+                                size: 14),
                             label: Text(DateFormat('d/M/yyyy')
                                 .format(_selectedDate)),
                             onPressed: () async {
@@ -170,16 +218,27 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                             child: const Text('Today'),
                           ),
                           TextButton(
-                            onPressed: () => setState(() => _selectedDate =
-                                DateTime(2026, 3, 5)
+                            onPressed: () => setState(() =>
+                                _selectedDate = DateTime(2026, 3, 5)
                                     .subtract(const Duration(days: 1))),
                             child: const Text('Yesterday'),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+
+                      const SizedBox(height: 12),
+
+                      // ── Legend for multi-line charts ──
+                      if (_selectedChart == 'Total PV Current' ||
+                          _selectedChart == 'Total PV Voltage')
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: _buildLegend(),
+                        ),
+
+                      // ── Chart ──
                       SizedBox(
-                        height: 280,
+                        height: 300,
                         child: dataAsync.when(
                           loading: () => const Center(
                               child: CircularProgressIndicator()),
@@ -192,7 +251,7 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                                           color:
                                               AppColors.textSecondary)));
                             }
-                            return _buildStringCurrentChart(records);
+                            return _buildChart(records);
                           },
                         ),
                       ),
@@ -207,13 +266,63 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
     );
   }
 
-  Widget _buildStringCurrentChart(List<Map<String, dynamic>> records) {
-    // Build series for each dcCurrent channel
+  // ── Legend row for multi-channel charts ──
+  Widget _buildLegend() {
+    final prefix =
+        _selectedChart == 'Total PV Current' ? 'DC Current' : 'DC Voltage';
+    return Wrap(
+      spacing: 16,
+      runSpacing: 6,
+      children: _dcChannels.map((ch) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+                width: 14,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: _channelColors[(ch - 1) % _channelColors.length],
+                  borderRadius: BorderRadius.circular(2),
+                )),
+            const SizedBox(width: 4),
+            Text('$prefix #$ch',
+                style: const TextStyle(
+                    fontSize: 11, color: AppColors.textSecondary)),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  // ── Chart dispatcher ──
+  Widget _buildChart(List<Map<String, dynamic>> records) {
+    switch (_selectedChart) {
+      case 'Total PV Current':
+        return _buildMultiLineChart(records, 'dcCurrent', 'A');
+      case 'Total PV Voltage':
+        return _buildMultiLineChart(records, 'dcVoltage', 'V');
+      case 'E-Total Power':
+        return _buildSingleLineChart(
+            records, _computeCumulativeEnergy, 'kWh', 'E-Total Power');
+      case 'E-Today Power':
+        return _buildSingleLineChart(
+            records, _computeCumulativeEnergy, 'kWh', 'E-Today Power');
+      case 'Active Power':
+        return _buildSingleLineChart(
+            records, _computeActivePower, 'W', 'Active Power');
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // ── Multi-line chart (8 channels) ──
+  Widget _buildMultiLineChart(
+      List<Map<String, dynamic>> records, String prefix, String unit) {
     final channels = <int, List<FlSpot>>{};
     for (int i = 0; i < records.length; i++) {
       final r = records[i];
-      for (final ch in [1, 2, 3, 4, 8]) {
-        final val = (r['dcCurrent$ch'] as num?)?.toDouble();
+      for (final ch in _dcChannels) {
+        final val = (r['$prefix$ch'] as num?)?.toDouble();
         if (val != null) {
           channels.putIfAbsent(ch, () => []);
           channels[ch]!.add(FlSpot(i.toDouble(), val));
@@ -221,78 +330,207 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
       }
     }
     if (channels.isEmpty) {
-      return const Center(
-          child: Text('No current data',
-              style: TextStyle(color: AppColors.textSecondary)));
+      return Center(
+          child: Text('No ${prefix == 'dcCurrent' ? 'current' : 'voltage'} data',
+              style: const TextStyle(color: AppColors.textSecondary)));
     }
-    final colors = [
-      AppColors.primary,
-      AppColors.chartGreen,
-      AppColors.chartOrange,
-      AppColors.chartPurple,
-      AppColors.chartBlue,
-    ];
-    int ci = 0;
+
+    final channelList = channels.keys.toList()..sort();
     final series = <LineChartBarData>[];
-    for (final entry in channels.entries) {
+    for (final ch in channelList) {
       series.add(LineChartBarData(
-        spots: entry.value,
+        spots: channels[ch]!,
         isCurved: true,
-        color: colors[ci % colors.length],
+        color: _channelColors[(ch - 1) % _channelColors.length],
         barWidth: 2,
         dotData: const FlDotData(show: false),
       ));
-      ci++;
     }
+
     return LineChart(LineChartData(
+      lineTouchData: LineTouchData(
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipColor: (_) => Colors.white,
+          fitInsideHorizontally: true,
+          fitInsideVertically: true,
+          getTooltipItems: (spots) {
+            return spots.map((spot) {
+              final ch = channelList[spot.barIndex];
+              final label = prefix == 'dcCurrent'
+                  ? 'DC Current #$ch'
+                  : 'DC Voltage #$ch';
+              return LineTooltipItem(
+                '$label\n${spot.y.toStringAsFixed(2)} $unit',
+                TextStyle(
+                  color: _channelColors[(ch - 1) % _channelColors.length],
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              );
+            }).toList();
+          },
+        ),
+      ),
       gridData: FlGridData(
         show: true,
         drawVerticalLine: false,
         getDrawingHorizontalLine: (v) =>
             FlLine(color: AppColors.border, strokeWidth: 1),
       ),
-      titlesData: FlTitlesData(
-        bottomTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 28,
-            interval: (records.length / 6).ceilToDouble().clamp(1, 100),
-            getTitlesWidget: (value, meta) {
-              final idx = value.toInt();
-              if (idx < 0 || idx >= records.length) {
-                return const SizedBox.shrink();
-              }
-              final ts = records[idx]['timestamp']?.toString() ?? '';
-              final dt = DateTime.tryParse(ts);
-              if (dt == null) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(DateFormat('HH:mm').format(dt),
-                    style: const TextStyle(
-                        fontSize: 9, color: AppColors.textSecondary)),
-              );
-            },
-          ),
-        ),
-        leftTitles: AxisTitles(
-          sideTitles: SideTitles(
-            showTitles: true,
-            reservedSize: 36,
-            getTitlesWidget: (v, _) => Text('${v.toStringAsFixed(0)}A',
-                style: const TextStyle(
-                    fontSize: 9, color: AppColors.textSecondary)),
-          ),
-        ),
-        topTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-      ),
+      titlesData: _buildTitlesData(records, unit),
       borderData: FlBorderData(show: false),
       lineBarsData: series,
     ));
   }
 
+  // ── Single-line chart ──
+  Widget _buildSingleLineChart(
+    List<Map<String, dynamic>> records,
+    List<FlSpot> Function(List<Map<String, dynamic>>) computeFn,
+    String unit,
+    String label,
+  ) {
+    final spots = computeFn(records);
+    if (spots.isEmpty) {
+      return Center(
+          child: Text('No data',
+              style: const TextStyle(color: AppColors.textSecondary)));
+    }
+    return LineChart(LineChartData(
+      lineTouchData: LineTouchData(
+        touchTooltipData: LineTouchTooltipData(
+          getTooltipColor: (_) => Colors.white,
+          fitInsideHorizontally: true,
+          fitInsideVertically: true,
+          getTooltipItems: (spots) {
+            return spots.map((spot) {
+              return LineTooltipItem(
+                '$label\n${spot.y.toStringAsFixed(2)} $unit',
+                const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
+              );
+            }).toList();
+          },
+        ),
+      ),
+      gridData: FlGridData(
+        show: true,
+        drawVerticalLine: false,
+        getDrawingHorizontalLine: (v) =>
+            FlLine(color: AppColors.border, strokeWidth: 1),
+      ),
+      titlesData: _buildTitlesData(records, unit),
+      borderData: FlBorderData(show: false),
+      lineBarsData: [
+        LineChartBarData(
+          spots: spots,
+          isCurved: true,
+          color: AppColors.primary,
+          barWidth: 2.5,
+          dotData: const FlDotData(show: false),
+          belowBarData: BarAreaData(
+            show: true,
+            color: AppColors.primary.withValues(alpha: 0.08),
+          ),
+        ),
+      ],
+    ));
+  }
+
+  // ── Shared axis titles ──
+  FlTitlesData _buildTitlesData(
+      List<Map<String, dynamic>> records, String unit) {
+    return FlTitlesData(
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 28,
+          interval: (records.length / 6).ceilToDouble().clamp(1, 100),
+          getTitlesWidget: (value, meta) {
+            final idx = value.toInt();
+            if (idx < 0 || idx >= records.length) {
+              return const SizedBox.shrink();
+            }
+            final ts = records[idx]['timestamp']?.toString() ?? '';
+            final dt = DateTime.tryParse(ts);
+            if (dt == null) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(DateFormat('HH:mm').format(dt),
+                  style: const TextStyle(
+                      fontSize: 9, color: AppColors.textSecondary)),
+            );
+          },
+        ),
+      ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 44,
+          getTitlesWidget: (v, _) => Text(
+              '${v.toStringAsFixed(v >= 1000 ? 0 : 1)}$unit',
+              style: const TextStyle(
+                  fontSize: 9, color: AppColors.textSecondary)),
+        ),
+      ),
+      topTitles:
+          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles:
+          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+    );
+  }
+
+  // ── Compute active power (W) at each timestamp ──
+  List<FlSpot> _computeActivePower(List<Map<String, dynamic>> records) {
+    final spots = <FlSpot>[];
+    for (int i = 0; i < records.length; i++) {
+      final r = records[i];
+      double power = 0;
+      for (final ch in _dcChannels) {
+        final v = (r['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
+        final c = (r['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
+        power += v * c;
+      }
+      spots.add(FlSpot(i.toDouble(), power));
+    }
+    return spots;
+  }
+
+  // ── Compute cumulative energy (kWh) ──
+  List<FlSpot> _computeCumulativeEnergy(
+      List<Map<String, dynamic>> records) {
+    final spots = <FlSpot>[];
+    double cumulative = 0;
+    for (int i = 0; i < records.length; i++) {
+      final r = records[i];
+      double power = 0;
+      for (final ch in _dcChannels) {
+        final v = (r['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
+        final c = (r['dcCurrent$ch'] as num?)?.toDouble() ?? 0;
+        power += v * c;
+      }
+      // Approximate time step from adjacent records
+      double dtHours = 5.0 / 60.0; // default 5 min
+      if (i > 0) {
+        final ts0 = DateTime.tryParse(
+            records[i - 1]['timestamp']?.toString() ?? '');
+        final ts1 =
+            DateTime.tryParse(r['timestamp']?.toString() ?? '');
+        if (ts0 != null && ts1 != null) {
+          dtHours =
+              ts1.difference(ts0).inSeconds.abs() / 3600.0;
+        }
+      }
+      cumulative += (power / 1000.0) * dtHours;
+      spots.add(FlSpot(i.toDouble(), cumulative));
+    }
+    return spots;
+  }
+
+  // ── CSV export with all 8 channels ──
   void _exportCsv(BuildContext context) {
     final dataAsync = ref.read(inverterDataByDateProvider(
         (inverterId: widget.inverterId, date: _selectedDate)));
@@ -302,23 +540,18 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
             const SnackBar(content: Text('No data to export')));
         return;
       }
+      final header = ['timestamp'];
+      for (final ch in _dcChannels) {
+        header.addAll(['dcVoltage$ch', 'dcCurrent$ch']);
+      }
       final buf = StringBuffer();
-      buf.writeln(
-          'timestamp,dcVoltage1,dcCurrent1,dcVoltage2,dcCurrent2,dcVoltage3,dcCurrent3,dcVoltage4,dcCurrent4,dcVoltage8,dcCurrent8');
+      buf.writeln(header.join(','));
       for (final r in records) {
-        buf.writeln([
-          r['timestamp'],
-          r['dcVoltage1'] ?? '',
-          r['dcCurrent1'] ?? '',
-          r['dcVoltage2'] ?? '',
-          r['dcCurrent2'] ?? '',
-          r['dcVoltage3'] ?? '',
-          r['dcCurrent3'] ?? '',
-          r['dcVoltage4'] ?? '',
-          r['dcCurrent4'] ?? '',
-          r['dcVoltage8'] ?? '',
-          r['dcCurrent8'] ?? '',
-        ].join(','));
+        final row = [r['timestamp']];
+        for (final ch in _dcChannels) {
+          row.addAll([r['dcVoltage$ch'] ?? '', r['dcCurrent$ch'] ?? '']);
+        }
+        buf.writeln(row.join(','));
       }
       final filename =
           'inverter_${widget.inverterId}_${DateFormat('yyyyMMdd').format(_selectedDate)}.csv';
@@ -340,44 +573,57 @@ class _GridMeasurementsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Text('Grid Measurements',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.edit, size: 14),
-                  label: const Text('Edit'),
-                  onPressed: () {},
-                ),
-              ],
-            ),
+            const Text('Grid Measurements',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             latestAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('$e'),
               data: (data) {
                 if (data == null) {
                   return const Text('No data',
-                      style: TextStyle(color: AppColors.textSecondary));
+                      style:
+                          TextStyle(color: AppColors.textSecondary));
                 }
-                final measurements = <MapEntry<String, String>>[];
-                for (final ch in [1, 2, 3, 4, 8]) {
-                  final v = data['dcVoltage$ch'];
-                  if (v != null) {
-                    measurements.add(MapEntry(
-                        'DC Voltage $ch', (v as num).toStringAsFixed(2)));
-                  }
+                String fmt(dynamic v, String unit) {
+                  if (v == null) return '--';
+                  return '${(v as num).toStringAsFixed(2)} $unit';
                 }
+
+                final fields = <MapEntry<String, String>>[
+                  MapEntry(
+                      'Grid Voltage AB', fmt(data['gridVoltageAB'], 'V')),
+                  MapEntry(
+                      'Grid Voltage BC', fmt(data['gridVoltageBC'], 'V')),
+                  MapEntry(
+                      'Grid Voltage AC', fmt(data['gridVoltageAC'], 'V')),
+                  MapEntry(
+                      'Grid Voltage A', fmt(data['gridVoltageA'], 'V')),
+                  MapEntry(
+                      'Grid Voltage B', fmt(data['gridVoltageB'], 'V')),
+                  MapEntry(
+                      'Grid Voltage C', fmt(data['gridVoltageC'], 'V')),
+                  MapEntry(
+                      'Grid Current A', fmt(data['gridCurrentA'], 'A')),
+                  MapEntry(
+                      'Grid Current B', fmt(data['gridCurrentB'], 'A')),
+                  MapEntry(
+                      'Grid Current C', fmt(data['gridCurrentC'], 'A')),
+                  MapEntry(
+                      'Grid Frequency', fmt(data['gridFrequency'], 'Hz')),
+                ];
+
                 return Wrap(
-                  spacing: 32,
+                  spacing: 24,
                   runSpacing: 16,
-                  children: measurements
+                  children: fields
                       .map((m) => SizedBox(
-                            width: 140,
+                            width: 150,
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                               children: [
                                 Text(m.key,
                                     style: const TextStyle(
@@ -387,7 +633,7 @@ class _GridMeasurementsCard extends StatelessWidget {
                                 Text(m.value,
                                     style: const TextStyle(
                                         color: AppColors.primary,
-                                        fontSize: 20,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold)),
                               ],
                             ),
@@ -403,7 +649,8 @@ class _GridMeasurementsCard extends StatelessWidget {
               final dt = ts != null ? DateTime.tryParse(ts) : null;
               return Row(
                 children: [
-                  const Icon(Icons.schedule, size: 14, color: AppColors.textSecondary),
+                  const Icon(Icons.schedule,
+                      size: 14, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text(
                       dt != null
@@ -413,7 +660,8 @@ class _GridMeasurementsCard extends StatelessWidget {
                           color: AppColors.textSecondary, fontSize: 12)),
                 ],
               );
-            }).value ?? const SizedBox.shrink(),
+            }).value ??
+                const SizedBox.shrink(),
           ],
         ),
       ),
@@ -439,16 +687,18 @@ class _EnergyDataCard extends StatelessWidget {
                     TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             latestAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
               error: (e, _) => Text('$e'),
               data: (data) {
                 if (data == null) {
                   return const Text('No data',
-                      style: TextStyle(color: AppColors.textSecondary));
+                      style:
+                          TextStyle(color: AppColors.textSecondary));
                 }
-                // Calculate some energy metrics from DC data
+                // Calculate energy from all 8 DC channels
                 double totalPower = 0;
-                for (final ch in [1, 2, 3, 4, 8]) {
+                for (final ch in [1, 2, 3, 4, 5, 6, 7, 8]) {
                   final v =
                       (data['dcVoltage$ch'] as num?)?.toDouble() ?? 0;
                   final c =
@@ -462,13 +712,13 @@ class _EnergyDataCard extends StatelessWidget {
                         'E-Today Active Production',
                         '${(totalPower / 1000).toStringAsFixed(2)} kW'),
                     const SizedBox(height: 16),
-                    _EnergyItem(Icons.bolt, 'Active Power',
-                        '${totalPower.toStringAsFixed(2)} W'),
-                    const SizedBox(height: 16),
                     _EnergyItem(
                         Icons.electric_meter_outlined,
                         'E-Total Active Production',
                         '${(totalPower / 1000).toStringAsFixed(2)} kW'),
+                    const SizedBox(height: 16),
+                    _EnergyItem(Icons.bolt, 'Active Power',
+                        '${totalPower.toStringAsFixed(2)} W'),
                   ],
                 );
               },
@@ -480,7 +730,8 @@ class _EnergyDataCard extends StatelessWidget {
               final dt = ts != null ? DateTime.tryParse(ts) : null;
               return Row(
                 children: [
-                  const Icon(Icons.schedule, size: 14, color: AppColors.textSecondary),
+                  const Icon(Icons.schedule,
+                      size: 14, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
                   Text(
                       dt != null
@@ -490,7 +741,8 @@ class _EnergyDataCard extends StatelessWidget {
                           color: AppColors.textSecondary, fontSize: 12)),
                 ],
               );
-            }).value ?? const SizedBox.shrink(),
+            }).value ??
+                const SizedBox.shrink(),
           ],
         ),
       ),
