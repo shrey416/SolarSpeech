@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../shared/breadcrumb_bar.dart';
 
-class SlmsListScreen extends ConsumerWidget {
-  const SlmsListScreen({super.key});
+class ExportsScreen extends StatelessWidget {
+  const ExportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -15,10 +14,10 @@ class SlmsListScreen extends ConsumerWidget {
         children: [
           const BreadcrumbBar(items: [
             BreadcrumbItem('Dashboard', route: '/dashboard'),
-            BreadcrumbItem('SLMS'),
+            BreadcrumbItem('Exports'),
           ]),
           const SizedBox(height: 4),
-          const Text('SLMS Devices',
+          const Text('Exports',
               style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -31,17 +30,17 @@ class SlmsListScreen extends ConsumerWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.monitor_outlined,
+                    const Icon(Icons.file_download_outlined,
                         color: AppColors.textSecondary, size: 48),
                     const SizedBox(height: 12),
-                    const Text('No SLMS devices',
+                    const Text('No exports yet',
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textSecondary)),
                     const SizedBox(height: 4),
                     const Text(
-                        'SLMS devices will appear here once configured.',
+                        'Export data from individual inverter pages. Your exports will appear here.',
                         style: TextStyle(
                             color: AppColors.textSecondary, fontSize: 13)),
                   ],

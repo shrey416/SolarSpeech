@@ -85,10 +85,12 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
               unselectedLabelColor: AppColors.textSecondary,
               indicatorColor: AppColors.primary,
               indicatorSize: TabBarIndicatorSize.label,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
               tabs: const [
                 Tab(text: 'MFM'),
                 Tab(text: 'WMS'),
-                Tab(text: 'Radiation Sensor'),
+                Tab(text: 'Temperature'),
               ],
             ),
           ),
@@ -277,7 +279,7 @@ class _WfmTab extends ConsumerWidget {
   }
 }
 
-// ── Temperature / Radiation Sensor Tab ──
+// ── Temperature Tab ──
 class _TempTab extends ConsumerWidget {
   final String search;
   const _TempTab({required this.search});
@@ -301,7 +303,7 @@ class _TempTab extends ConsumerWidget {
           return const Padding(
             padding: EdgeInsets.all(32),
             child: Center(
-                child: Text('No radiation sensor devices found',
+                child: Text('No temperature devices found',
                     style: TextStyle(color: AppColors.textSecondary))),
           );
         }
@@ -345,7 +347,7 @@ class _TempTab extends ConsumerWidget {
         const DataCell(
             Icon(Icons.circle, color: AppColors.textSecondary, size: 10)),
         DataCell(Text(device['name']?.toString() ?? 'Sensor')),
-        const DataCell(Text('Radiation')),
+        const DataCell(Text('Temperature')),
         const DataCell(Text('Loading...')),
         const DataCell(Text('-')),
       ]),
@@ -357,7 +359,7 @@ class _TempTab extends ConsumerWidget {
         const DataCell(
             Icon(Icons.circle, color: AppColors.alert, size: 10)),
         DataCell(Text(device['name']?.toString() ?? 'Sensor')),
-        const DataCell(Text('Radiation')),
+        const DataCell(Text('Temperature')),
         const DataCell(Text('-')),
         const DataCell(Text('-')),
       ]),
@@ -378,7 +380,7 @@ class _TempTab extends ConsumerWidget {
           DataCell(Icon(Icons.circle, color: color, size: 10)),
           DataCell(Text(device['name']?.toString() ?? 'Sensor',
               style: const TextStyle(fontWeight: FontWeight.w600))),
-          const DataCell(Text('Radiation')),
+          const DataCell(Text('Temperature')),
           DataCell(Text('${val.toStringAsFixed(1)} °C')),
           DataCell(Text(dt != null
               ? '${dt.day}/${dt.month}/${dt.year}'

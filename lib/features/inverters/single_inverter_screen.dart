@@ -86,17 +86,19 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
               ]),
 
               // ── Header ──
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Icon(Icons.circle,
                       color: AppColors.active, size: 10),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 2),
                   const Text('Active',
                       style: TextStyle(
                           color: AppColors.active,
                           fontSize: 13,
                           fontWeight: FontWeight.w500)),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.info_outline),
                     onPressed: () {},
@@ -111,12 +113,14 @@ class _SingleInverterScreenState extends ConsumerState<SingleInverterScreen> {
                 ],
               ),
               const SizedBox(height: 4),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(invName,
                       style: const TextStyle(
                           fontSize: 24, fontWeight: FontWeight.bold)),
-                  const Spacer(),
                   FilledButton.icon(
                     icon: const Icon(Icons.download, size: 16),
                     label: const Text('Export'),
@@ -655,11 +659,11 @@ class _GridMeasurementsCard extends StatelessWidget {
                 ];
 
                 return Wrap(
-                  spacing: 24,
-                  runSpacing: 16,
+                  spacing: 16,
+                  runSpacing: 12,
                   children: fields
                       .map((m) => SizedBox(
-                            width: 150,
+                            width: 130,
                             child: Column(
                               crossAxisAlignment:
                                   CrossAxisAlignment.start,
