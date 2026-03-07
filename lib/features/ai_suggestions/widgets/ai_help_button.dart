@@ -54,6 +54,7 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
   @override
   Widget build(BuildContext context) {
     final suggestionsAsync = ref.watch(suggestionsProvider);
+    final crowdAsync = ref.watch(crowdSuggestionsProvider);
     final width = MediaQuery.of(context).size.width;
     final isCompact = width < 600;
     final panelWidth = isCompact ? width - 32 : 380.0;
@@ -74,7 +75,7 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
               child: Container(
                 width: panelWidth,
                 margin: const EdgeInsets.only(bottom: 12),
-                constraints: const BoxConstraints(maxHeight: 420),
+                constraints: const BoxConstraints(maxHeight: 520),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(20),
@@ -93,10 +94,10 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
                     _buildHeader(),
                     const Divider(
                         height: 1, color: AppColors.border, thickness: 1),
-                    // Suggestions list (scrollable)
+                    // AI Suggestions list
                     suggestionsAsync.when(
                       data: (suggestions) => suggestions.isEmpty
-                          ? _buildEmpty()
+                          ? const SizedBox.shrink()
                           : _buildSuggestionsList(suggestions),
                       loading: () => const Padding(
                         padding: EdgeInsets.all(24),
@@ -109,8 +110,26 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
                           ),
                         ),
                       ),
-                      error: (_, __) => _buildEmpty(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
+                    // Crowd suggestions section
+                    crowdAsync.when(
+                      data: (crowd) =>
+                          crowd.isEmpty ? const SizedBox.shrink() : _buildCrowdSection(crowd),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                    // Empty state only if both are empty
+                    Builder(builder: (context) {
+                      final aiEmpty = suggestionsAsync
+                              .whenOrNull(data: (s) => s.isEmpty) ??
+                          true;
+                      final crowdEmpty = crowdAsync
+                              .whenOrNull(data: (s) => s.isEmpty) ??
+                          true;
+                      if (aiEmpty && crowdEmpty) return _buildEmpty();
+                      return const SizedBox.shrink();
+                    }),
                     const Divider(
                         height: 1, color: AppColors.border, thickness: 1),
                     _buildChatbotRow(),
@@ -123,7 +142,7 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
             ),
           ),
           // FAB button
-          _buildFab(suggestionsAsync),
+          _buildFab(suggestionsAsync, crowdAsync),
         ],
       ),
     );
@@ -185,19 +204,149 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
 
   Widget _buildSuggestionsList(List<AiSuggestion> suggestions) {
     return Flexible(
-      child: ListView.separated(
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: suggestions.length,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: AppColors.border, indent: 16, endIndent: 16),
-        itemBuilder: (context, index) {
-          final s = suggestions[index];
-          return _SuggestionTile(
-            suggestion: s,
-            onTap: () => _handleTap(context, s),
-          );
-        },
+      flex: 3,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, color: AppColors.primary, size: 14),
+                SizedBox(width: 6),
+                Text(
+                  'AI SUGGESTIONS',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.separated(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: 4),
+              itemCount: suggestions.length,
+              separatorBuilder: (_, __) => const Divider(
+                  height: 1,
+                  color: AppColors.border,
+                  indent: 16,
+                  endIndent: 16),
+              itemBuilder: (context, index) {
+                final s = suggestions[index];
+                return _SuggestionTile(
+                  suggestion: s,
+                  onTap: () => _handleTap(context, s),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCrowdSection(List<AiSuggestion> crowdSuggestions) {
+    return Flexible(
+      flex: 2,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1, color: AppColors.border, thickness: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.people, color: AppColors.active, size: 14),
+                const SizedBox(width: 6),
+                const Text(
+                  'MOST USERS GO HERE',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: 4),
+              itemCount: crowdSuggestions.length,
+              itemBuilder: (context, index) {
+                final s = crowdSuggestions[index];
+                final pct = s.metadata['crowd_percentage'] as int? ?? 0;
+                return InkWell(
+                  onTap: () => _handleTap(context, s),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        // Percentage ring
+                        SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: CircularProgressIndicator(
+                                  value: pct > 0 ? pct / 100 : 0.15,
+                                  strokeWidth: 3,
+                                  backgroundColor: AppColors.border,
+                                  color: AppColors.active,
+                                ),
+                              ),
+                              Text(
+                                pct > 0 ? '$pct%' : '~',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.active,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.message,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 12.5,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_ios,
+                            color: AppColors.active, size: 14),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -292,8 +441,13 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
     );
   }
 
-  Widget _buildFab(AsyncValue<List<AiSuggestion>> suggestionsAsync) {
-    final count = suggestionsAsync.whenOrNull(data: (s) => s.length) ?? 0;
+  Widget _buildFab(AsyncValue<List<AiSuggestion>> suggestionsAsync,
+      AsyncValue<List<AiSuggestion>> crowdAsync) {
+    final aiCount =
+        suggestionsAsync.whenOrNull(data: (s) => s.length) ?? 0;
+    final crowdCount =
+        crowdAsync.whenOrNull(data: (s) => s.length) ?? 0;
+    final count = aiCount + crowdCount;
 
     return GestureDetector(
       onTap: _toggle,
@@ -445,6 +599,8 @@ class _SuggestionTile extends StatelessWidget {
         return AppColors.active;
       case SuggestionType.comparison:
         return AppColors.chartPurple;
+      case SuggestionType.trending:
+        return AppColors.active;
     }
   }
 }

@@ -6,6 +6,7 @@ enum SuggestionType {
   report,
   insight,
   comparison,
+  trending,
 }
 
 enum SuggestionPriority { low, medium, high, critical }
