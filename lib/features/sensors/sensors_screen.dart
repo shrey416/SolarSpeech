@@ -7,7 +7,8 @@ import '../shared/breadcrumb_bar.dart';
 
 class SensorsScreen extends ConsumerStatefulWidget {
   final int initialTab;
-  const SensorsScreen({super.key, this.initialTab = 0});
+  final String? initialPlantId;
+  const SensorsScreen({super.key, this.initialTab = 0, this.initialPlantId});
 
   @override
   ConsumerState<SensorsScreen> createState() => _SensorsScreenState();
@@ -17,12 +18,14 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabCtrl;
   String _search = '';
+  String? _selectedPlantId;
 
   @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 4, vsync: this, initialIndex: widget.initialTab);
     _tabCtrl.addListener(() => setState(() {}));
+    _selectedPlantId = widget.initialPlantId;
   }
 
   @override
@@ -51,12 +54,8 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary)),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.filter_alt_outlined, size: 14),
-                label: const Text('Filter', style: TextStyle(fontSize: 12)),
-                onPressed: () {},
-              ),
+              const SizedBox(width: 12),
+              _buildPlantDropdown(),
             ],
           ),
           const SizedBox(height: 8),
@@ -102,14 +101,52 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
           IndexedStack(
             index: _tabCtrl.index,
             children: [
-              _AllTab(search: _search),
-              _MfmTab(search: _search),
-              _WfmTab(search: _search),
-              _TempTab(search: _search),
+              _AllTab(search: _search, plantId: _selectedPlantId),
+              _MfmTab(search: _search, plantId: _selectedPlantId),
+              _WfmTab(search: _search, plantId: _selectedPlantId),
+              _TempTab(search: _search, plantId: _selectedPlantId),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPlantDropdown() {
+    final plantsAsync = ref.watch(plantsProvider);
+    return plantsAsync.when(
+      loading: () => const SizedBox(width: 120, height: 36, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (plants) {
+        return Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: _selectedPlantId,
+              hint: const Text('All Plants', style: TextStyle(fontSize: 12)),
+              icon: const Icon(Icons.arrow_drop_down, size: 18),
+              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+              isDense: true,
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('All Plants', style: TextStyle(fontSize: 12)),
+                ),
+                ...plants.map((p) => DropdownMenuItem<String?>(
+                  value: p['id'] as String,
+                  child: Text(p['name']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 12)),
+                )),
+              ],
+              onChanged: (v) => setState(() => _selectedPlantId = v),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -117,7 +154,8 @@ class _SensorsScreenState extends ConsumerState<SensorsScreen>
 // ── All Tab (shows MFM + WMS + Temperature combined) ──
 class _AllTab extends ConsumerWidget {
   final String search;
-  const _AllTab({required this.search});
+  final String? plantId;
+  const _AllTab({required this.search, this.plantId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -168,9 +206,14 @@ class _AllTab extends ConsumerWidget {
       });
     }
 
-    final filtered = search.isEmpty
+    // Apply plant filter
+    final plantFiltered = plantId == null
         ? allDevices
-        : allDevices
+        : allDevices.where((d) => d['plantId'] == plantId).toList();
+
+    final filtered = search.isEmpty
+        ? plantFiltered
+        : plantFiltered
             .where((d) =>
                 d['name'].toString().toLowerCase().contains(search.toLowerCase()) ||
                 d['category'].toString().toLowerCase().contains(search.toLowerCase()))
@@ -229,7 +272,8 @@ class _AllTab extends ConsumerWidget {
 // ── MFM Tab ──
 class _MfmTab extends ConsumerWidget {
   final String search;
-  const _MfmTab({required this.search});
+  final String? plantId;
+  const _MfmTab({required this.search, this.plantId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -238,9 +282,12 @@ class _MfmTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Text('Error: $e'),
       data: (mfms) {
-        final filtered = search.isEmpty
+        final plantFiltered = plantId == null
             ? mfms
-            : mfms
+            : mfms.where((m) => m['Sensors']?['plantId']?.toString() == plantId).toList();
+        final filtered = search.isEmpty
+            ? plantFiltered
+            : plantFiltered
                 .where((m) => (m['name'] ?? '')
                     .toString()
                     .toLowerCase()
@@ -341,7 +388,8 @@ class _MfmTab extends ConsumerWidget {
 // ── WFM Tab ──
 class _WfmTab extends ConsumerWidget {
   final String search;
-  const _WfmTab({required this.search});
+  final String? plantId;
+  const _WfmTab({required this.search, this.plantId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -350,9 +398,12 @@ class _WfmTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Text('Error: $e'),
       data: (wfms) {
-        final filtered = search.isEmpty
+        final plantFiltered = plantId == null
             ? wfms
-            : wfms
+            : wfms.where((w) => w['Sensors']?['plantId']?.toString() == plantId).toList();
+        final filtered = search.isEmpty
+            ? plantFiltered
+            : plantFiltered
                 .where((w) => (w['name'] ?? '')
                     .toString()
                     .toLowerCase()
@@ -398,7 +449,8 @@ class _WfmTab extends ConsumerWidget {
 // ── Temperature Tab ──
 class _TempTab extends ConsumerWidget {
   final String search;
-  const _TempTab({required this.search});
+  final String? plantId;
+  const _TempTab({required this.search, this.plantId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -407,9 +459,12 @@ class _TempTab extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Text('Error: $e'),
       data: (temps) {
-        final filtered = search.isEmpty
+        final plantFiltered = plantId == null
             ? temps
-            : temps
+            : temps.where((t) => t['Sensors']?['plantId']?.toString() == plantId).toList();
+        final filtered = search.isEmpty
+            ? plantFiltered
+            : plantFiltered
                 .where((t) => (t['name'] ?? '')
                     .toString()
                     .toLowerCase()

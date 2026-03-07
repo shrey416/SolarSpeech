@@ -33,7 +33,13 @@ final goRouter = GoRouter(
         ),
         GoRoute(
           path: '/inverters',
-          builder: (context, state) => const InvertersListScreen(),
+          builder: (context, state) {
+            final plantId = state.uri.queryParameters['plant'];
+            return InvertersListScreen(
+              key: ValueKey('inverters_$plantId'),
+              initialPlantId: plantId,
+            );
+          },
         ),
         GoRoute(
           path: '/plants/:plantId',
@@ -81,11 +87,16 @@ final goRouter = GoRouter(
           path: '/sensors',
           builder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
+            final plantId = state.uri.queryParameters['plant'];
             int initialTab = 0;
             if (tabParam == 'mfm') initialTab = 1;
             if (tabParam == 'wms') initialTab = 2;
             if (tabParam == 'temperature') initialTab = 3;
-            return SensorsScreen(key: ValueKey('sensors_$tabParam'), initialTab: initialTab);
+            return SensorsScreen(
+              key: ValueKey('sensors_${tabParam}_$plantId'),
+              initialTab: initialTab,
+              initialPlantId: plantId,
+            );
           },
         ),
         GoRoute(

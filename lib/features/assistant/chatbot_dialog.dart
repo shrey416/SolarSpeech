@@ -120,7 +120,29 @@ class _ChatbotDialogState extends State<ChatbotDialog>
     final route = await LlmNavigationService.getRouteFromText(text);
     final isDataQ = _isDataQuestion(text);
 
-    if (isDataQ) {
+    // Plant-filtered list navigation takes priority
+    final isPlantFilteredNav = route != null &&
+        route.contains('plant=') &&
+        (route.startsWith('/sensors') || route.startsWith('/inverters'));
+
+    if (isPlantFilteredNav || (route != null && _isNavigationCommand(text) && !isDataQ)) {
+      // Navigate
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(
+          text: "Navigating for you!",
+          isUser: false,
+        ));
+        _isProcessing = false;
+      });
+      _scrollToBottom();
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+      final router = GoRouter.of(context);
+      Navigator.of(context).pop();
+      router.go(route);
+      return;
+    } else if (isDataQ) {
       // Answer with data from chatbot
       final response = await ChatbotService.processMessage(text);
       if (!mounted) return;
@@ -191,6 +213,15 @@ class _ChatbotDialogState extends State<ChatbotDialog>
     if (t.contains('go to') || t.contains('navigate') || t.contains('open') ||
         t.contains('show me') || t.contains('take me') ||
         t.contains('switch to') || t.contains('visit')) {
+      return true;
+    }
+    // "show" + list keyword (sensors/inverters) + plant reference
+    if (t.contains('show') &&
+        RegExp(r'\b(sensor|sensors|inverter|inverters|mfm|temperature|temp|wms)\b',
+                caseSensitive: false)
+            .hasMatch(t) &&
+        RegExp(r'\b(plant|site|station|farm)\b', caseSensitive: false)
+            .hasMatch(t)) {
       return true;
     }
     // Device + chart/graph intent

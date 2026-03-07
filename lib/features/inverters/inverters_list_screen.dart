@@ -5,11 +5,25 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/data_providers.dart';
 import '../shared/breadcrumb_bar.dart';
 
-class InvertersListScreen extends ConsumerWidget {
-  const InvertersListScreen({super.key});
+class InvertersListScreen extends ConsumerStatefulWidget {
+  final String? initialPlantId;
+  const InvertersListScreen({super.key, this.initialPlantId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InvertersListScreen> createState() => _InvertersListScreenState();
+}
+
+class _InvertersListScreenState extends ConsumerState<InvertersListScreen> {
+  String? _selectedPlantId;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedPlantId = widget.initialPlantId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final invertersAsync = ref.watch(allInvertersProvider);
     final search = ref.watch(deviceSearchProvider);
 
@@ -33,6 +47,8 @@ class InvertersListScreen extends ConsumerWidget {
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary)),
               ),
+              const SizedBox(width: 12),
+              _buildPlantDropdown(),
             ],
           ),
           const SizedBox(height: 8),
@@ -55,9 +71,14 @@ class InvertersListScreen extends ConsumerWidget {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Text('Error: $e'),
             data: (inverters) {
-              final filtered = search.isEmpty
+              final plantFiltered = _selectedPlantId == null
                   ? inverters
                   : inverters
+                      .where((inv) => inv['plantId']?.toString() == _selectedPlantId)
+                      .toList();
+              final filtered = search.isEmpty
+                  ? plantFiltered
+                  : plantFiltered
                       .where((inv) => (inv['name'] ?? '')
                           .toString()
                           .toLowerCase()
@@ -105,6 +126,44 @@ class InvertersListScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPlantDropdown() {
+    final plantsAsync = ref.watch(plantsProvider);
+    return plantsAsync.when(
+      loading: () => const SizedBox(width: 120, height: 36, child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (plants) {
+        return Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: _selectedPlantId,
+              hint: const Text('All Plants', style: TextStyle(fontSize: 12)),
+              icon: const Icon(Icons.arrow_drop_down, size: 18),
+              style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+              isDense: true,
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('All Plants', style: TextStyle(fontSize: 12)),
+                ),
+                ...plants.map((p) => DropdownMenuItem<String?>(
+                  value: p['id'] as String,
+                  child: Text(p['name']?.toString() ?? 'Unknown', style: const TextStyle(fontSize: 12)),
+                )),
+              ],
+              onChanged: (v) => setState(() => _selectedPlantId = v),
+            ),
+          ),
+        );
+      },
     );
   }
 

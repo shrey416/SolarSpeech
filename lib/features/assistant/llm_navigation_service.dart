@@ -453,6 +453,13 @@ class LlmNavigationService {
     }
 
     // ────────────────────────────────────────────
+    // 0.5 Plant-filtered list views
+    //     e.g. "show sensors for GOA plant", "inverters for GOA"
+    // ────────────────────────────────────────────
+    final plantFilteredRoute = await _resolvePlantFilteredList(text);
+    if (plantFilteredRoute != null) return finalize(plantFilteredRoute);
+
+    // ────────────────────────────────────────────
     // 1. Exact tab / section matching (fastest)
     // ────────────────────────────────────────────
     final tabRoute = _matchTab(text);
@@ -585,6 +592,130 @@ class LlmNavigationService {
         return '/alerts?deviceId=${Uri.encodeComponent(match['id'])}&deviceName=${Uri.encodeComponent(match['name'] ?? '')}';
       }
     } catch (_) {}
+    return null;
+  }
+
+  // ══════════════════════════════════════════════
+  //  Plant-filtered list resolution
+  //  "show sensors for GOA plant", "inverters for GOA"
+  // ══════════════════════════════════════════════
+  static Future<String?> _resolvePlantFilteredList(String text) async {
+    // Determine which list page the user wants
+    String? baseRoute;
+
+    // Check for inverter list keywords (singular and plural)
+    if (RegExp(r'\b(inverters|inverter)\b', caseSensitive: false).hasMatch(text) &&
+        !RegExp(r'\b(inverter|invertor)\s+\d', caseSensitive: false).hasMatch(text)) {
+      baseRoute = '/inverters';
+    }
+
+    // Check for sensor-related tab keywords (most specific WINS — don't let generic overwrite)
+    if (baseRoute == null) {
+      int bestLen = -1;
+      for (final tab in _tabIntents) {
+        if (tab.route.startsWith('/sensors')) {
+          for (final kw in tab.keywords) {
+            if (text.contains(kw) && kw.length > bestLen) {
+              bestLen = kw.length;
+              baseRoute = tab.route;
+            }
+          }
+        }
+      }
+    }
+
+    if (baseRoute == null) return null;
+
+    // Now detect if a plant name is mentioned
+    try {
+      final plants = await _supabase.from('Plant').select('id, name');
+      if (plants.isEmpty) return null;
+
+      // 1. Direct full-name match (case-insensitive)
+      for (final p in plants) {
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        if (name.isNotEmpty && text.contains(name)) {
+          return _appendParam(baseRoute!, 'plant', p['id'] as String);
+        }
+      }
+
+      // 2. Word-overlap matching — split each plant name into meaningful words
+      //    and check how many appear in the user text.
+      //    e.g. "M/S. GOA SHIPYARD LIMITED" → ["goa", "shipyard", "limited"]
+      //    User text "show sensors for goa plant" contains "goa" → match!
+      final commonWords = <String>{
+        'm/s', 'm/s.', 'ms', 'limited', 'ltd', 'pvt', 'private',
+        'inc', 'corp', 'co', 'the', 'of', 'and',
+      };
+
+      Map<String, dynamic>? bestPlant;
+      int bestOverlap = 0;
+      double bestFuzzy = 0;
+
+      for (final p in plants) {
+        final name = (p['name'] ?? '').toString().toLowerCase();
+        // Split on whitespace and common delimiters; filter out short/common words
+        final nameWords = name
+            .split(RegExp(r'[\s./,_\-]+'))
+            .where((w) => w.length > 1 && !commonWords.contains(w))
+            .toList();
+
+        // Count how many distinctive plant-name words appear in the user text
+        int overlap = 0;
+        for (final w in nameWords) {
+          if (RegExp('\\b${RegExp.escape(w)}\\b', caseSensitive: false)
+              .hasMatch(text)) {
+            overlap++;
+          }
+        }
+
+        // Pick the plant with the most word overlaps (min 1)
+        if (overlap > bestOverlap) {
+          bestOverlap = overlap;
+          bestPlant = Map<String, dynamic>.from(p);
+        } else if (overlap == bestOverlap && overlap > 0) {
+          // Tie-break with fuzzy score
+          final score = _fuzzyScore(text, name);
+          if (score > bestFuzzy) {
+            bestFuzzy = score;
+            bestPlant = Map<String, dynamic>.from(p);
+          }
+        }
+      }
+
+      if (bestPlant != null && bestOverlap >= 1) {
+        return _appendParam(baseRoute!, 'plant', bestPlant['id'] as String);
+      }
+
+      // 3. Fuzzy fallback — strip all keywords, try matching residual against plant names
+      final stripped = text
+          .replaceAll(_filler, ' ')
+          .replaceAll(_inverterKw, ' ')
+          .replaceAll(RegExp(r'\b(sensors?)\b', caseSensitive: false), ' ')
+          .replaceAll(_mfmKw, ' ')
+          .replaceAll(_tempKw, ' ')
+          .replaceAll(_plantKw, ' ')
+          .replaceAll(_chartStripKw, ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+
+      if (stripped.isNotEmpty && stripped.length > 1) {
+        Map<String, dynamic>? fuzzyBest;
+        double fuzzyBestScore = 0;
+        for (final p in plants) {
+          final name = (p['name'] ?? '').toString().toLowerCase();
+          final score = _fuzzyScore(stripped, name);
+          if (score > fuzzyBestScore && score >= 0.3) {
+            fuzzyBestScore = score;
+            fuzzyBest = Map<String, dynamic>.from(p);
+          }
+        }
+        if (fuzzyBest != null) {
+          return _appendParam(baseRoute!, 'plant', fuzzyBest['id'] as String);
+        }
+      }
+    } catch (_) {}
+
     return null;
   }
 
