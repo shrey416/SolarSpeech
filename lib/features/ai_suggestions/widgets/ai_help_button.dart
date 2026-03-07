@@ -204,6 +204,7 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
 
   Widget _buildSuggestionsList(List<AiSuggestion> suggestions) {
     return Flexible(
+      flex: 3,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -251,92 +252,102 @@ class _AiHelpButtonState extends ConsumerState<AiHelpButton>
   }
 
   Widget _buildCrowdSection(List<AiSuggestion> crowdSuggestions) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(height: 1, color: AppColors.border, thickness: 1),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-          child: Row(
-            children: [
-              Icon(Icons.people, color: AppColors.active, size: 14),
-              const SizedBox(width: 6),
-              const Text(
-                'MOST USERS GO HERE',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1,
+    return Flexible(
+      flex: 2,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1, color: AppColors.border, thickness: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Row(
+              children: [
+                Icon(Icons.people, color: AppColors.active, size: 14),
+                const SizedBox(width: 6),
+                const Text(
+                  'MOST USERS GO HERE',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        ...crowdSuggestions.map((s) {
-          final pct = s.metadata['crowd_percentage'] as int? ?? 0;
-          return InkWell(
-            onTap: () => _handleTap(context, s),
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  // Percentage ring
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Stack(
-                      alignment: Alignment.center,
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.only(bottom: 4),
+              itemCount: crowdSuggestions.length,
+              itemBuilder: (context, index) {
+                final s = crowdSuggestions[index];
+                final pct = s.metadata['crowd_percentage'] as int? ?? 0;
+                return InkWell(
+                  onTap: () => _handleTap(context, s),
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
                       children: [
+                        // Percentage ring
                         SizedBox(
                           width: 40,
                           height: 40,
-                          child: CircularProgressIndicator(
-                            value: pct > 0 ? pct / 100 : 0.15,
-                            strokeWidth: 3,
-                            backgroundColor: AppColors.border,
-                            color: AppColors.active,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              SizedBox(
+                                width: 40,
+                                height: 40,
+                                child: CircularProgressIndicator(
+                                  value: pct > 0 ? pct / 100 : 0.15,
+                                  strokeWidth: 3,
+                                  backgroundColor: AppColors.border,
+                                  color: AppColors.active,
+                                ),
+                              ),
+                              Text(
+                                pct > 0 ? '$pct%' : '~',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.active,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          pct > 0 ? '$pct%' : '~',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.active,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                s.message,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 12.5,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 8),
+                        const Icon(Icons.arrow_forward_ios,
+                            color: AppColors.active, size: 14),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          s.message,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 12.5,
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_ios,
-                      color: AppColors.active, size: 14),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        }),
-        const SizedBox(height: 4),
-      ],
+          ),
+        ],
+      ),
     );
   }
 
