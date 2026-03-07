@@ -15,5 +15,5 @@ class AppConfig {
       dotenv.env['OPENROUTER_API_KEY'] ?? '';
 
   // Model to use — fast model for responsive chatbot
-  static const String llmModel = 'google/gemma-3-12b-it:free';
+  static const String llmModel = 'qwen/qwen3-vl-30b-a3b-thinking';
 }
